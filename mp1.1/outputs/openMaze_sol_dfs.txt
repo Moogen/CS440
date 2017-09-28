@@ -19,4 +19,4 @@
 %       ..%                         %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Path length: 125
-Nodes expanded: 335
+Nodes expanded: 336

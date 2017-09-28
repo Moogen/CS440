@@ -1,5 +1,5 @@
 import copy
-
+import math
 PACMAN, WALL, DOT = 'P', '%', '.'
 
 def parse_file(file):
@@ -19,7 +19,6 @@ def parse_file(file):
 	with open(file) as f:
 		lines = f.readlines()
 	lines = [line.strip() for line in lines]
-	
 	for x in range(len(lines)):
 		line = lines[x]
 		maze.append([])
@@ -47,6 +46,14 @@ def manhattan(p1, p2):
 	return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
 
 def print_sol(output_path, maze, sol, num_nodes_expanded):
+	"""Write documentation for this
+
+	Arguments:
+		output_path {string} -- file name
+		maze {list} -- a list carrying the maze
+		sol {list} -- a list of tuples carrying the solution 
+		num_nodes_expanded {int} -- the number of nodes expanded (lol)
+	"""
 	maze = copy.deepcopy(maze)
 	for c in sol:
 		maze[c[0]][c[1]] = '.'
@@ -67,3 +74,22 @@ def visited_to_path(visited, goal):
 		curr = prev
 		prev = visited[prev]
 	return path
+
+def get_closest_dot(dots, curr) :
+	"""Returns the dot closest to the current coordinates
+
+	Arguments: 
+		dots {list of tuples} -- coordinates for all the dots that we still have to collect
+		curr {tuple} -- coordinates of our current location
+
+	Returns: 
+		tuple -- the dot we want to go to next 
+	"""
+	dist = math.inf
+	next_dot = (0, 0)
+	for dot in dots:
+		heur = manhattan(dot, curr)
+		if heur < dist: 
+			dist = heur
+			next_dot = dot
+	return next_dot
