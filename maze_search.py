@@ -14,16 +14,12 @@ def dfs(states, start, goal):
 		if coord == goal:
 			return visited, num_expanded
 
-		expanded = False
+		num_expanded += 1
 		for direction in DIRS:
 			nextCoord = (coord[0] + direction[0], coord[1] + direction[1])
 			if nextCoord in states and nextCoord not in visited:
 				stack.append(nextCoord)
 				visited[nextCoord] = coord
-				expanded = True
-
-		if expanded:
-			num_expanded += 1
 
 def bfs(states, start, goal):
 	q, num_expanded = queue.Queue(), 0
@@ -32,20 +28,16 @@ def bfs(states, start, goal):
 	visited[start] = start
 	while q:
 		coord = q.get()
+		num_expanded += 1
 		if coord == goal:
 			print("found goal")
 			return visited, num_expanded
 
-		expanded = False
 		for direction in DIRS:
 			nextCoord = (coord[0] + direction[0], coord[1] + direction[1])
 			if nextCoord in states and nextCoord not in visited:
 				q.put(nextCoord)
 				visited[nextCoord] = coord
-				expanded = True
-
-		if expanded:
-			num_expanded += 1
 
 def greedy(states, start, goal):
 	visited = {}
@@ -57,20 +49,16 @@ def greedy(states, start, goal):
 		min_node = min(nodes, key = lambda x:x[1])
 		coord = min_node[0]
 		nodes.remove(min_node)
+		num_expanded += 1
 		if coord == goal:
 			print("found goal")
 			return visited, num_expanded
 
-		expanded = False
 		for direction in DIRS:
 			nextCoord = (coord[0] + direction[0], coord[1] + direction[1])
 			if nextCoord in states and nextCoord not in visited:
 				nodes.append((nextCoord, manhattan(nextCoord, goal)))
 				visited[nextCoord] = coord
-				expanded = True
-
-		if expanded:
-			num_expanded += 1
 
 def astar(states, start, goal):
 	visited = {}
@@ -82,17 +70,13 @@ def astar(states, start, goal):
 		min_node = min(nodes, key = lambda x:x[1])
 		coord, _, cost = min_node
 		nodes.remove(min_node)
+		num_expanded += 1
 		if coord == goal:
 			print("found goal")
 			return visited, num_expanded
 
-		expanded = False
 		for direction in DIRS:
 			nextCoord = (coord[0] + direction[0], coord[1] + direction[1])
 			if nextCoord in states and nextCoord not in visited:
 				nodes.append((nextCoord, cost + manhattan(nextCoord, goal), cost+1))
 				visited[nextCoord] = coord
-				expanded = True
-
-		if expanded:
-			num_expanded += 1
