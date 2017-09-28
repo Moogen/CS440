@@ -84,6 +84,12 @@ def astar_single(states, start, goal):
 				visited[nextCoord] = coord
 				expanded = True			
 
+"""
+TODO:
+1. Trace path with numbers instead of dots
+2. Come up with a more clever heuristic function than manhattan distance
+3. Come up with a more clever dot selection strategy than "pick whichever dot is closest to the current node" 
+"""
 def astar_multiple(states, start, goals):
 	"""
 	Implements A* search on a maze with multiple goals 
@@ -104,7 +110,7 @@ def astar_multiple(states, start, goals):
 
 	while goals: 
 		nodes, path_to_dot = [], {}
-		goal = get_closest_dot(goals, coord)
+		goal = get_closest_dot(goals, coord) # Current dot selection strategy
 		goals.remove(goal)
 		start_node = (coord, manhattan(coord, goal), 0)
 		nodes.append(start_node)
