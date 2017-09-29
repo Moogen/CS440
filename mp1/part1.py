@@ -1,6 +1,7 @@
-from utils import parse_file, visited_to_path, print_sol
+from utils import parse_file, visited_to_path, print_sol, print_sol_multiple
 from maze_search import dfs, bfs, greedy, astar_single, astar_multiple
 import sys
+from collections import deque
 
 FILE_NAMES_1 = ['mediumMaze', 'bigMaze', 'openMaze'];
 FILE_NAMES_2 = ['tinySearch', 'smallSearch', 'mediumSearch']
@@ -22,9 +23,9 @@ def part1_2():
 		input_path = 'mp1.2/inputs/' + file_name + '.txt'
 		maze, states, pacman, dots = parse_file(input_path)
 		print("Now searching: {0}.txt".format(file_name))
-		sol, num_nodes_expanded = astar_multiple(states, pacman, dots)
+		sol, order, num_nodes_expanded = astar_multiple(states, pacman, dots)
 		output_path = 'mp1.2/outputs/' + file_name + '_sol_astar_multiple.txt'
-		print_sol(output_path, maze, sol, num_nodes_expanded)
+		print_sol_multiple(output_path, maze, sol, order, num_nodes_expanded)
 
 def part1_ec():
 	input_path = 'mp1_ec/inputs/bigDots.txt'

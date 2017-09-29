@@ -1,5 +1,7 @@
 import copy
 import math
+from collections import deque
+
 PACMAN, WALL, DOT = 'P', '%', '.'
 
 def parse_file(file):
@@ -63,7 +65,30 @@ def print_sol(output_path, maze, sol, num_nodes_expanded):
 			for y in range(len(maze[0])):
 				f.write(maze[x][y])
 			f.write('\n')
-		f.write('Path length: ' + str(len(sol)) + '\n')
+		f.write('Path cost: ' + str(len(sol)) + '\n')
+		f.write('Nodes expanded: ' + str(num_nodes_expanded))
+
+def print_sol_multiple(output_path, maze, sol, order, num_nodes_expanded):
+	maze = copy.deepcopy(maze)
+	num = 0
+	for dot in order:
+		if num < 10:
+			maze[dot[0]][dot[1]] = num
+			num += 1
+			if num == 10:
+				num = 97
+		else:
+			maze[dot[0]][dot[1]] = chr(num)
+			num += 1
+			if num == 123:
+				num = 65 # We are assuming there will not be more than 62 dots
+
+	with open(output_path, mode='w') as f:
+		for x in range(len(maze)):
+			for y in range(len(maze[0])):
+				f.write(str(maze[x][y]))
+			f.write('\n')
+		f.write('Solution cost: ' + str(len(sol) - 1) + '\n') # len(sol) - 1 because sol includes the start node
 		f.write('Nodes expanded: ' + str(num_nodes_expanded))
 
 def visited_to_path(visited, goal):
@@ -71,6 +96,15 @@ def visited_to_path(visited, goal):
 	curr, prev = goal, visited[goal]
 	while curr != prev:
 		path.append(curr)
+		curr = prev
+		prev = visited[prev]
+	return path
+
+def visited_to_path_deque(visited, goal):
+	path = deque()
+	curr, prev = goal, visited[goal]
+	while curr != prev:
+		path.appendleft(curr)
 		curr = prev
 		prev = visited[prev]
 	return path
