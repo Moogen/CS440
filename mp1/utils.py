@@ -68,11 +68,20 @@ def print_sol(output_path, maze, sol, num_nodes_expanded):
 
 def visited_to_path(visited, goal):
 	path = []
-	curr, prev = goal, visited[goal]
-	while curr != prev:
+	curr, prev = goal, visited.get(goal)
+	while curr != prev and curr != None:
 		path.append(curr)
 		curr = prev
-		prev = visited[prev]
+		prev = visited.get(prev)
+	return path
+
+def visited_to_path2(visited, goal):
+	path = []
+	curr, prev = goal, visited.get(goal)
+	while curr != ((4,4),()):
+		path.append(curr[0])
+		curr = prev
+		prev = visited.get(prev)
 	return path
 
 def get_closest_dot(dots, curr) :

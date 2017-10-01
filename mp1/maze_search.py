@@ -1,5 +1,5 @@
 import queue as queue
-from utils import manhattan, get_closest_dot, visited_to_path
+from utils import manhattan, get_closest_dot, visited_to_path, visited_to_path2
 import copy
 
 DIRS = [(1, 0), (0, 1), (-1, 0), (0, -1)]
@@ -70,7 +70,7 @@ def astar_single(states, start, goal):
 	visited[start] = start
 	while nodes:
 		min_node = min(nodes, key = lambda x:x[1])
-		coord, _, cost = min_node
+		coord, h, cost = min_node
 		nodes.remove(min_node)
 		num_expanded += 1
 		if coord == goal:
@@ -79,10 +79,46 @@ def astar_single(states, start, goal):
 
 		for direction in DIRS:
 			nextCoord = (coord[0] + direction[0], coord[1] + direction[1])
-			if nextCoord in states and nextCoord not in visited:
-				nodes.append((nextCoord, cost + manhattan(nextCoord, goal), cost+1))
-				visited[nextCoord] = coord
-				expanded = True			
+			val = visited.get(nextCoord)
+			if nextCoord in states:
+				if val is None:
+					nodes.append((nextCoord, cost + manhattan(nextCoord, goal), cost+1))
+					visited[nextCoord] = coord
+				else:
+					new_h = cost + manhattan(nextCoord, goal)
+					if new_h < h:
+						nodes.append((nextCoord, cost + manhattan(nextCoord, goal), cost+1))
+						visited[nextCoord] = coord
+
+def bfs2(states, start, goal):
+	q, num_expanded = queue.Queue(), 0
+	visited = {} #the key is a coordinate, the value is the previous coordinate, this helps in constructing the final path
+	q.put((start, ()))
+	visited[start] = (start, ())
+	while q:
+		coord, dots_eaten = q.get()
+		num_expanded += 1
+		if coord in goal and coord not in dots_eaten:
+			old_key = (coord, dots_eaten)
+			prev_val = visited.get(old_key)
+			dots_eaten = list(dots_eaten)
+			dots_eaten.append(coord)
+			dots_eaten = tuple(sorted(dots_eaten))
+			new_key = (coord, dots_eaten)
+			visited[new_key] = prev_val
+
+		if len(dots_eaten) == len(goal):
+			print("tiny bfs done")
+			return visited, num_expanded, (coord, tuple(sorted(goal)))
+
+		for direction in DIRS:
+			nextCoord = (coord[0] + direction[0], coord[1] + direction[1])
+			if nextCoord in states:
+				key = (nextCoord, dots_eaten)
+				nextNode = visited.get(key)
+				if nextNode is None:
+					q.put(key)
+					visited[key] = (coord, dots_eaten)
 
 """
 TODO:

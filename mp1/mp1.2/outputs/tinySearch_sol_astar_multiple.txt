@@ -3,9 +3,9 @@
 %.%.%.%% %
 %.%....%.%
 %..%P%...%
-%....  ..%
+%.. .....%
 %.%%%% %.%
 %...   %.%
 %%%%%%%%%%
-Path length: 47
-Nodes expanded: 80
+Path length: 42
+Nodes expanded: 63

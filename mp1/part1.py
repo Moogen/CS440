@@ -1,5 +1,6 @@
-from utils import parse_file, visited_to_path, print_sol
-from maze_search import dfs, bfs, greedy, astar_single, astar_multiple
+from utils import parse_file, visited_to_path, visited_to_path2, print_sol
+from maze_search import dfs, bfs, bfs2, greedy, astar_single, astar_multiple
+from ec import get_distances, astar_ec, astar_p2
 import sys
 
 FILE_NAMES_1 = ['mediumMaze', 'bigMaze', 'openMaze'];
@@ -22,17 +23,30 @@ def part1_2():
 		input_path = 'mp1.2/inputs/' + file_name + '.txt'
 		maze, states, pacman, dots = parse_file(input_path)
 		print("Now searching: {0}.txt".format(file_name))
-		sol, num_nodes_expanded = astar_multiple(states, pacman, dots)
+		num_nodes_expanded, sol = astar_ec(states, pacman, dots)
+		print(num_nodes_expanded, len(sol))
 		output_path = 'mp1.2/outputs/' + file_name + '_sol_astar_multiple.txt'
 		print_sol(output_path, maze, sol, num_nodes_expanded)
+
+def test():
+	input_path = 'mp1_ec/inputs/' + 'bigDots' + '.txt'
+	maze, states, pacman, dots = parse_file(input_path)
+	print("Now searching: {0}.txt".format('bigDots'))
+	results = get_distances(states, dots)
+	for a in results:
+		print(a, results[a])
+	#visited, num_nodes_expanded, end = bfs2(states, pacman, dots)
+	#sol = visited_to_path2(visited, end)
+	#output_path = 'mp1.2/outputs/' + 'bigDots' + '_sol_astar_multiple.txt'
+	#print_sol(output_path, maze, sol, num_nodes_expanded)
 
 def part1_ec():
 	input_path = 'mp1_ec/inputs/bigDots.txt'
 	output_path = 'mp1_ec/outputs/bigDots_sol.txt'
 
 	maze, states, pacman, dots = parse_file(input_path)
-	sol, num_nodes_expanded = astar_multiple(states, pacman, dots)
-	print_sol(output_path, maze, sol, num_nodes_expanded)
+	num_expanded, visited = astar_ec(states, pacman, dots)
+	print(num_expanded, len(visited))
 	
 def print_usage():
 	print("To use:\npython part1.py [part1_1 | part1_2 | part1_ec]")
@@ -49,6 +63,8 @@ if __name__ == "__main__":
 			part1_2()
 		elif func == "part1_ec":
 			part1_ec()
+		elif func == "test":
+			test()
 		else:
 			print("Option {0} is invalid".format(i))
 			print_usage()
