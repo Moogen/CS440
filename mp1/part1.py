@@ -1,8 +1,9 @@
 from utils import parse_file, visited_to_path, visited_to_path2, print_sol, print_sol_multiple
 from maze_search import dfs, bfs, bfs2, greedy, astar_single, astar_multiple
-from ec import get_distances, astar_ec, astar_p2
+from ec import get_distances, astar_ec, astar_ec_anim
 import sys
 from collections import deque
+from maze_graphics import draw_sol
 
 FILE_NAMES_1 = ['mediumMaze', 'bigMaze', 'openMaze'];
 FILE_NAMES_2 = ['tinySearch', 'smallSearch', 'mediumSearch']
@@ -43,10 +44,12 @@ def test():
 def part1_ec():
 	input_path = 'mp1_ec/inputs/bigDots.txt'
 	output_path = 'mp1_ec/outputs/bigDots_sol.txt'
+	#input_path = 'mp1.2/inputs/' + 'mediumSearch' + '.txt'
 
 	maze, states, pacman, dots = parse_file(input_path)
-	num_expanded, visited = astar_ec(states, pacman, dots)
-	print(num_expanded, len(visited))
+	num_expanded, path, order, win = astar_ec_anim(states, pacman, dots, maze)
+	draw_sol(win, path, order)
+	print(num_expanded, len(path))
 	
 def print_usage():
 	print("To use:\npython part1.py [part1_1 | part1_2 | part1_ec]")
