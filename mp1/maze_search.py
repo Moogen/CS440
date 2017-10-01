@@ -1,6 +1,8 @@
 import queue as queue
+<<<<<<< HEAD
 from utils import manhattan, get_closest_dot, visited_to_path, visited_to_path2
 import copy
+from collections import deque
 
 DIRS = [(1, 0), (0, 1), (-1, 0), (0, -1)]
 
@@ -142,12 +144,15 @@ def astar_multiple(states, start, goals):
 	goals = copy.deepcopy(goals)
 	num_expanded = 0
 	coord = start
-	path = []
+	path = deque()
+	reached = deque()
+	path.appendleft(start)
 
 	while goals: 
 		nodes, path_to_dot = [], {}
 		goal = get_closest_dot(goals, coord) # Current dot selection strategy
 		goals.remove(goal)
+		reached.append(goal)
 		start_node = (coord, manhattan(coord, goal), 0)
 		nodes.append(start_node)
 		path_to_dot[coord] = coord
@@ -158,7 +163,7 @@ def astar_multiple(states, start, goals):
 			num_expanded += 1
 			if coord == goal:
 				print("Found goal at {0}".format(goal))
-				path.extend(visited_to_path(path_to_dot, goal))
+				path.extend(visited_to_path_deque(path_to_dot, goal))
 				break
 
 			for direction in DIRS:
@@ -167,4 +172,4 @@ def astar_multiple(states, start, goals):
 					nodes.append((nextCoord, cost + manhattan(nextCoord, goal), cost + 1))
 					path_to_dot[nextCoord] = coord
 				
-	return path, num_expanded
+	return path, reached, num_expanded
