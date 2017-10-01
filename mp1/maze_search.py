@@ -1,5 +1,4 @@
 import queue as queue
-<<<<<<< HEAD
 from utils import manhattan, get_closest_dot, visited_to_path, visited_to_path2
 import copy
 from collections import deque

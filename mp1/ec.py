@@ -17,6 +17,7 @@ def astar_ec(states, start, goals):
 	start_node = (start, distances.get(start), 0)
 	nodes.append(start_node)
 	visited[start] = start
+	order = []
 	while nodes:
 		min_node = min(nodes, key = lambda x:x[1])
 		coord, h, cost = min_node
@@ -24,6 +25,7 @@ def astar_ec(states, start, goals):
 		num_expanded += 1
 		if coord in goals:
 			#print(coord)
+			order.append(coord)
 			goals.remove(coord)
 			distances = get_distances(states, goals)
 			path.extend(visited_to_path(visited, coord))
@@ -33,7 +35,7 @@ def astar_ec(states, start, goals):
 
 		if len(goals) ==0:
 			print("done")
-			return num_expanded, path
+			return num_expanded, path, order
 
 		for direction in DIRS:
 			nextCoord = (coord[0] + direction[0], coord[1] + direction[1])
@@ -53,51 +55,41 @@ def astar_ec(states, start, goals):
 						visited[nextCoord] = coord
 						"""
 
-def astar_p2(states, start, goals):
+def astar_ec_anim(states, start, goals, maze):
+	win = GraphWin()
+
 	goals = copy.deepcopy(goals)
-	goals = sorted(goals)
 	visited, path = {}, []
 	distances = get_distances(states, goals)
 	nodes, num_expanded = [], 0
-	start_node = (start, distances.get(start), 0, tuple(goals))
+	start_node = (start, distances.get(start), 0)
 	nodes.append(start_node)
-	visited[(start, tuple(goals))] = (start, tuple(goals))
-	prev_goals = tuple(goals)
-
+	visited[start] = start
+	order = []
 	while nodes:
 		min_node = min(nodes, key = lambda x:x[1])
-		coord, h, cost, curr_goals = min_node
+		coord, h, cost = min_node
 		nodes.remove(min_node)
 		num_expanded += 1
-
-		if prev_goals != curr_goals:
-			distances = get_distances(states, list(curr_goals))
-
-		if coord in curr_goals:
+		if coord in goals:
 			#print(coord)
-			old_key = (coord, curr_goals)
-			prev_val = visited.get(old_key)
+			order.append(coord)
+			goals.remove(coord)
+			distances = get_distances(states, goals)
+			path.extend(visited_to_path(visited, coord))
+			visited.clear()
+			visited[coord] = coord
+			nodes = []
 
-			curr_goals = list(curr_goals)
-			curr_goals.remove(coord)
-			curr_goals = sorted(curr_goals)
-			distances = get_distances(states, curr_goals)
-			curr_goals = tuple(curr_goals)
-			new_key = (coord, curr_goals)
-			visited[new_key] = prev_val
-
-
-		if len(curr_goals) ==0:
+		if len(goals) ==0:
 			print("done")
-			return num_expanded, visited, (coord, curr_goals)
+			return num_expanded, path, order
 
 		for direction in DIRS:
 			nextCoord = (coord[0] + direction[0], coord[1] + direction[1])
-			if nextCoord in states and (nextCoord, curr_goals) not in visited:
-				nodes.append((nextCoord, cost + distances.get(nextCoord), cost+1, curr_goals))
-				visited[(nextCoord, curr_goals)] = (coord, curr_goals)
-
-		prev_goals = curr_goals
+			if nextCoord in states and nextCoord not in visited:
+				nodes.append((nextCoord, cost + distances.get(nextCoord), cost+1))
+				visited[nextCoord] = coord
 
 
 def get_distances(states, goals):
