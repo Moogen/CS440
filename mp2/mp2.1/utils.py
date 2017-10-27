@@ -55,14 +55,20 @@ class Path:
 		"""
 		return self.path
 
-	"""
+	def set_path(self, path):
+		"""
+		Set the path
+		"""
+		self.path = path
+
 	def copy(self):
-		""
+		"""
 		Returns a copy of the Path object
-		""
-		copy = Path(self.path.copy())
+		"""
+		copy = Path()
+		copy.set_path(self.path.copy())
 		return copy
-	"""
+	
 
 class Pipe:
 	"""
@@ -218,10 +224,10 @@ def parse_file(file):
 	with open(file) as f:
 		lines = f.readlines()
 	lines = [line.strip() for line in lines]
-	for x in range(len(lines)):
-		line = lines[x]
-		for y in range(len(line)):
-			char = line[y]
+	for y in range(len(lines)):
+		line = lines[y]
+		for x in range(len(line)):
+			char = line[x]
 			if char == '_':
 				board.add_empty((x,y))
 			elif char not in letters:
