@@ -55,7 +55,7 @@ def print_usage():
 	print("To use:\npython part1.py [part1_1 | part1_2 | part1_ec]")
 
 if __name__ == "__main__":
-	if(len(sys.argv) == 1): 
+	if len(sys.argv) == 1: 
 		print_usage()
 
 	for i in range(1, len(sys.argv)):

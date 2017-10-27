@@ -7,11 +7,17 @@ class Path:
 
 	def __init__(self):
 		"""
-		Initialize a Path object
+		Initialize a Path object with a blank path
 		"""
 		self.path = []
 
-	def append_coord(self, coord): 
+	def __str__(self):
+		"""
+		Defined for print statements
+		"""
+		return "{0}".format(self.path)
+
+	def add_coord(self, coord): 
 		"""
 		Append a coordinate to the end of the path. 
 		*** There probably will not be situations where we need to insert coordinates into the middle/front
@@ -36,6 +42,27 @@ class Path:
 		Returns the length of the path
 		"""
 		return len(self.path)
+
+	def back(self):
+		"""
+		Returns the last coordinate in the path
+		"""
+		return self.path[len(self.path) - 1]
+
+	def get_path(self):
+		"""
+		Returns the path
+		"""
+		return self.path
+
+	"""
+	def copy(self):
+		""
+		Returns a copy of the Path object
+		""
+		copy = Path(self.path.copy())
+		return copy
+	"""
 
 class Pipe:
 	"""
@@ -63,6 +90,9 @@ class Pipe:
 		s = "Sources for pipe {0}: ".format(self.letter)
 		for sources in self.sources:
 			s += "{0} ".format(sources)
+		s += "\n\tPaths: "
+		for path in self.paths:
+			s += "{0} ".format(path)
 		return s
 
 	def get_letter(self):
@@ -80,6 +110,24 @@ class Pipe:
 			source {tuple}: A source
 		"""
 		self.sources.append(source)
+
+	def get_sources(self):
+		"""
+		Returns sources
+		"""
+		return self.sources
+
+	def set_paths(self, paths):
+		"""
+		Setter method for paths
+		"""
+		self.paths = paths
+	
+	def get_paths(self, paths):
+		"""
+		Getter method for paths
+		"""
+		return self.paths
 
 class Board:
 	"""
@@ -99,6 +147,9 @@ class Board:
 		self.empty = []
 
 	def __str__(self):
+		"""
+		Defined for print statements
+		"""
 		s = "Pipes: \n"
 		for pipe in self.pipes:
 			s += "{0}".format(pipe)
@@ -127,6 +178,12 @@ class Board:
 				return pipe
 		# Assume that we never request an invalid letter. Probably want to add error checking 
 
+	def remove_pipe(self, pipe):
+		"""
+		Removes a Pipe object
+		"""
+		self.pipes.remove(pipe)
+
 	def add_empty(self, coord):
 		"""
 		Adds a coordinate to empty
@@ -139,6 +196,12 @@ class Board:
 		"""
 		if coord in self.empty:
 			self.empty.remove(coord)
+
+	def get_empty(self):
+		"""
+		Getter function for empty
+		"""
+		return self.empty.copy()
 
 def parse_file(file):
 	"""
@@ -166,12 +229,12 @@ def parse_file(file):
 				pipe.add_sources((x,y))
 				board.add_pipe(pipe)
 				letters.append(char)
-				print(letters)
 			elif char in letters: 
 				pipe = board.get_pipe(char)
 				pipe.add_sources((x,y))
+	dimX = dimY = len(lines)
 	return board
 
 if __name__ == "__main__":
-	board = parse_file("mp2.1/inputs/input10102.txt");
+	board = parse_file("inputs/input10102.txt");
 	print(board)
