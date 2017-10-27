@@ -24,8 +24,8 @@ def dumb_solution(file):
 	"""
 	
 	# Open the file and initialize the board and all pipes
-	file = "inputs/" + file
-	board = parse_file(file)
+	filepath = "Inputs/" + file
+	board = parse_file(filepath)
 	
 	# Fill out the list of possible values 
 	for pipe in board.pipes:
@@ -34,6 +34,11 @@ def dumb_solution(file):
 		valid.append(end)
 		visited = Path()
 		pipe.set_paths(generate_paths(visited, start, end, valid))
+
+	print(board)
+	# Write the solution to the file
+	filepath = "output" + file[file.find("t"):]
+	write_to_file(filepath, board)
 	
 
 def generate_paths(visited, start, goal, valid):
@@ -73,9 +78,18 @@ def generate_paths(visited, start, goal, valid):
 	return paths
 
 def smart_solution(file):
-	file = "inputs/" + file
+	# Open the file and initialize the board and all pipes
+	file = "Inputs/" + file
 	board = parse_file(file)
-
+	
+	# Fill out the list of possible values 
+	for pipe in board.pipes:
+		start, end = pipe.get_sources()
+		valid = board.get_empty()
+		valid.append(end)
+		visited = Path()
+		pipe.set_paths(generate_paths(visited, start, end, valid))
+	
 def print_usage():
 	print("To use:\npython part1.py  [dumb | smart] [input55 | input77 | input88 | input99 | input10101 | input10102].txt")
 

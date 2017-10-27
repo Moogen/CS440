@@ -4,7 +4,6 @@ class Path:
 	In the context of a CSP, each path is a value
 	Basically just a wrapper for a list of tuples because I don't want to deal with the ugliness of "list of list of tuples"
 	"""
-
 	def __init__(self):
 		"""
 		Initialize a Path object with a blank path
@@ -129,7 +128,7 @@ class Pipe:
 		"""
 		self.paths = paths
 	
-	def get_paths(self, paths):
+	def get_paths(self):
 		"""
 		Getter method for paths
 		"""
@@ -143,14 +142,15 @@ class Board:
 	def __init__(self):
 		"""
 		Initializes the Board object
+		pipes is a list that holds Pipe objects and represents the variables of the game 
+		empty is a list that holds the remaining coordinates that have not yet been assigned to. Coordinates will be represented as tuples. 
 		
 		Arguments:
 			pipes {list of Pipe objects}
-		pipes is a list that holds Pipe objects and represents the variables of the game 
-		empty is a list that holds the remaining coordinates that have not yet been assigned to. Coordinates will be represented as tuples. 
 		"""
 		self.pipes = []
 		self.empty = []
+		self.dimension = 0
 
 	def __str__(self):
 		"""
@@ -184,6 +184,12 @@ class Board:
 				return pipe
 		# Assume that we never request an invalid letter. Probably want to add error checking 
 
+	def get_pipes(self):
+		"""
+		Getter method for pipes
+		"""
+		return self.pipes
+
 	def remove_pipe(self, pipe):
 		"""
 		Removes a Pipe object
@@ -209,21 +215,34 @@ class Board:
 		"""
 		return self.empty.copy()
 
+	def set_dimension(self, dimension):
+		"""
+		Setter function for dimension
+		"""
+		self.dimension = dimension
+
+	def get_dimension(self):
+		"""
+		Getter function for dimension
+		"""
+		return self.dimension
+
 def parse_file(file):
 	"""
 	Parses an input file and converts it into useable data 
 
 	Arguments:
-		file {string} -- file name
+		file {string}: file name
 
 	Returns:
-		Board -- Returns an initialized board object
+		Board: Returns an initialized board object
 	"""
 	board = Board()
 	letters = []
 	with open(file) as f:
 		lines = f.readlines()
 	lines = [line.strip() for line in lines]
+	board.set_dimension(len(lines))
 	for y in range(len(lines)):
 		line = lines[y]
 		for x in range(len(line)):
@@ -238,9 +257,52 @@ def parse_file(file):
 			elif char in letters: 
 				pipe = board.get_pipe(char)
 				pipe.add_sources((x,y))
-	dimX = dimY = len(lines)
 	return board
 
+def write_to_file(file, board):
+	"""
+	A function that writes a board state to a text file
+
+	Arguments:
+		file {string}: The name of the output file
+		board {Board object}: The current state of the board
+
+	Returns:
+		Nothing, but writes to a file
+	"""
+	state = []
+	for i in range(board.get_dimension()):
+		state.append(["_"] * board.get_dimension())
+	for pipe in board.get_pipes():
+		path = pipe.get_paths()[0].get_path()
+		letter = pipe.get_letter()
+		for coord in path: 
+			state[coord[0]][coord[1]] = letter
+	file = "Outputs/" + file
+	with open(file, mode="w") as f:
+		for x in range(len(state)):
+			for y in range(len(state[0])):
+				f.write("{0}".format(state[x][y]))
+			f.write("\n")
+
+def check_intersection(path1, path2):
+	"""
+	A function that checks if two paths intersect 
+	Runs in O(n^2) time
+
+	Arguments:
+		path1, path2 {Path objects}: we want to confirm or deny the intersection of these two paths
+
+	Returns:
+		True if the two paths intersect. False if they don't
+	"""
+	p1 = path1.get_path()
+	p2 = path2.get_path()
+	for coord in p1:
+		if coord in p2:
+			return True
+	return False
+
 if __name__ == "__main__":
-	board = parse_file("inputs/input10102.txt");
+	board = parse_file("Inputs/input55.txt");
 	print(board)
