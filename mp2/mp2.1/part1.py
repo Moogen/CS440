@@ -70,9 +70,6 @@ def generate_paths(visited, start, goal, valid):
 	Returns:
 		paths {list of Path objects} - Represents all paths between the two source coordinates in the pipe
 	"""
-	# The back tracking is not working.
-	# Figure out why
-	# print(visited)
 	paths = []
 	visited.add_coord(start)
 	if start == goal: # Base case
