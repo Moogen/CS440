@@ -1,5 +1,7 @@
 from utils import * 
 import sys
+import random 
+import math
 
 DIRS = [(1, 0), (0, 1), (-1, 0), (0, -1)]
 
@@ -20,7 +22,7 @@ def dumb_solution(file):
 		file {string} - The name of the file that holds the board we want to solve
 
 	Returns:
-		Nothing. Prints out the solution at the end and writes it to an output file
+		Nothing. Writes the solution to an output file if it exists
 	"""
 	
 	# Open the file and initialize the board and all pipes
@@ -35,11 +37,22 @@ def dumb_solution(file):
 		visited = Path()
 		pipe.set_paths(generate_paths(visited, start, end, valid))
 
-	print(board)
-	# Write the solution to the file
-	filepath = "output" + file[file.find("t"):]
-	write_to_file(filepath, board)
+	# Run a recursive BT search on all the pipes to find a complete, consistent assignment of paths (if it exists)
+	assignment = []
+	unassigned = board.get_pipes_copy()
+	if dumb_BT(assignment, unassigned):
+		assign_to_board(assignment, board)
+		filepath = "output" + file[file.find("t") + 1:]
+		write_to_file(filepath, board)
+	else:
+		print("Cannot find a solution for this game")
 	
+def assign_to_board(assignment, board):
+	"""
+	Helper function that copies the complete, consistent assignment to the board object
+	"""
+	for pipe in assignment:
+		board.get_pipe(pipe.get_letter()).set_solution(pipe.get_solution())
 
 def generate_paths(visited, start, goal, valid):
 	"""
@@ -77,6 +90,91 @@ def generate_paths(visited, start, goal, valid):
 			paths.extend(generate_paths(visited.copy(), nextCoord, goal, valid))
 	return paths
 
+def dumb_BT(assignment, unassigned):
+	"""
+	A recursive backtracking algorithm to find a complete, consistent assignment for all pipes in a "dumb" way
+	"Dumb" Implementation: random variable and value ordering, no forward checking
+	Edits the assignment list in place
+
+	Arguments:
+		assignment {list of Pipe objects}: a list holding all pipes that currently have assignments
+		unassigned {list of Pipe objects}: a list holding all pipes that currently do not have assignments
+
+	Returns:
+		True if a complete, consistent assignment has been found, False if it doesn't exist
+	"""
+	if len(unassigned) == 0:
+		if completion_check_full(assignment):
+			return True
+		else:
+			return False
+	tested_paths = []
+	pipe = random_selection(unassigned)
+	unassigned.remove(pipe)
+	while(len(pipe.get_paths()) != 0):
+		path = random_selection(pipe.get_paths())
+		pipe.remove_path(path)
+		tested_paths.append(path)
+		if consistency_check_partial(assignment, path):
+			assignment.append(pipe)
+			pipe.set_solution(path)
+			if dumb_BT(assignment, unassigned):
+				return True
+			else:
+				assignment.remove(pipe)
+	pipe.set_paths(tested_paths)
+	unassigned.append(pipe)
+	return False
+
+def completion_check_full(assignment):
+	"""
+	Checks if the board has a complete, consistent assignment
+
+	Arguments:
+		assignment {list of Pipe objects}: represents all pipes that have assignments
+
+	Returns:
+		True if the board's current assignment is complete and consistent, False if it isn't
+	"""
+	if len(assignment) == 0:
+		return False
+	for pipe in assignment:
+		if pipe.get_solution().length() == 0:
+			return False
+	for i in range(len(assignment) - 1):
+		path = assignment[i].get_solution()
+		for j in range(i + 1, len(assignment)):
+			other_path = assignment[j].get_solution()
+			if check_intersection(path, other_path): # The paths intersect!
+				return False
+	return True
+
+def consistency_check_partial(assignment, path):
+	"""
+	Checks if a path is consistent with the current assignment
+	
+	Arguments:
+		assignment {list of Pipe objects}: represents all pipes that have assignments
+		path {Path object}: the path we want to check 
+
+	Returns:
+		True if the path is consistent with the assignment, False if it isn't
+	"""
+	if len(assignment) == 0:
+		return True
+	for pipe in assignment:
+		if check_intersection(path, pipe.get_solution()):
+			return False
+	return True
+
+def random_selection(obj_list):
+	"""
+	Randomly select something out of the list of objects and return it
+	obj_list will either be a list of pipes (i.e., get a random pipe) or a list of paths (i.e., get a random path)
+	"""
+	bound = len(obj_list)
+	return obj_list[math.floor(bound * random.random())]
+
 def smart_solution(file):
 	# Open the file and initialize the board and all pipes
 	file = "Inputs/" + file
@@ -91,7 +189,7 @@ def smart_solution(file):
 		pipe.set_paths(generate_paths(visited, start, end, valid))
 	
 def print_usage():
-	print("To use:\npython part1.py  [dumb | smart] [input55 | input77 | input88 | input99 | input10101 | input10102].txt")
+	print("To use:\npython part1.py  [dumb | smart] [input55 | input77 | input88 | input99].txt")
 
 if __name__ == "__main__":
 	if len(sys.argv) < 3:

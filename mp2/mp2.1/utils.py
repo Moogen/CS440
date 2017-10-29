@@ -83,10 +83,12 @@ class Pipe:
 			sources {list of two tuples}: Represents the two coordinates for the pipe's sources. There will always be two tuples 
 			paths {list of Path objects}: Holds all possible paths between the two coordinates. In the context of a CSP, paths is the set of values that can be 
 				assigned to the each variable/pipe
+			solution {Path object}: Holds the solution path
 		"""
 		self.letter = letter
 		self.sources = []
 		self.paths = []
+		self.solution = Path()
 
 	def __str__(self):
 		"""
@@ -98,6 +100,9 @@ class Pipe:
 		s += "\n\tPaths: "
 		for path in self.paths:
 			s += "{0} ".format(path)
+		s += "\n"
+		if self.solution != Path():
+			s += "\tSolution: {0}".format(self.solution)
 		return s
 
 	def get_letter(self):
@@ -116,9 +121,15 @@ class Pipe:
 		"""
 		self.sources.append(source)
 
+	def set_sources(self, sources):
+		"""
+		Setter method for sources
+		"""
+		self.sources = sources
+
 	def get_sources(self):
 		"""
-		Returns sources
+		Getter method for sources
 		"""
 		return self.sources
 
@@ -128,11 +139,40 @@ class Pipe:
 		"""
 		self.paths = paths
 	
+	def remove_path(self, path):
+		"""
+		Removes a path from paths
+		"""
+		if path in self.paths:
+			self.paths.remove(path)
+			
 	def get_paths(self):
 		"""
 		Getter method for paths
 		"""
 		return self.paths
+
+	def set_solution(self, path):
+		"""
+		Setter method for solution
+		"""
+		self.solution = path
+
+	def get_solution(self):
+		"""
+		Getter method for solution
+		"""
+		return self.solution
+
+	def copy(self):
+		"""
+		Returns a copy of this pipe
+		"""
+		copy = Pipe(self.get_letter())
+		copy.set_sources(self.get_sources().copy())
+		copy.set_paths(self.get_paths().copy())
+		copy.set_solution(self.get_solution().copy())
+		return copy
 
 class Board:
 	"""
@@ -190,11 +230,26 @@ class Board:
 		"""
 		return self.pipes
 
+	def get_pipes_copy(self):
+		"""
+		Gets a copy of the pipes list
+		"""
+		copy = []
+		for pipe in self.get_pipes():
+			copy.append(pipe.copy())
+		return copy
+
 	def remove_pipe(self, pipe):
 		"""
 		Removes a Pipe object
 		"""
 		self.pipes.remove(pipe)
+
+	def get_num_pipes(self):
+		"""
+		Returns the number of pipes in the board
+		"""
+		return len(self.pipes)
 
 	def add_empty(self, coord):
 		"""
@@ -274,14 +329,14 @@ def write_to_file(file, board):
 	for i in range(board.get_dimension()):
 		state.append(["_"] * board.get_dimension())
 	for pipe in board.get_pipes():
-		path = pipe.get_paths()[0].get_path()
+		path = pipe.get_solution()
 		letter = pipe.get_letter()
-		for coord in path: 
+		for coord in path.get_path(): 
 			state[coord[0]][coord[1]] = letter
 	file = "Outputs/" + file
 	with open(file, mode="w") as f:
-		for x in range(len(state)):
-			for y in range(len(state[0])):
+		for y in range(len(state)):
+			for x in range(len(state[0])):
 				f.write("{0}".format(state[x][y]))
 			f.write("\n")
 
@@ -298,9 +353,10 @@ def check_intersection(path1, path2):
 	"""
 	p1 = path1.get_path()
 	p2 = path2.get_path()
-	for coord in p1:
-		if coord in p2:
-			return True
+	for coord1 in p1:
+		for coord2 in p2:
+			if coord1 == coord2: 
+				return True
 	return False
 
 if __name__ == "__main__":
