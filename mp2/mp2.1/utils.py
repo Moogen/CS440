@@ -1,3 +1,5 @@
+import math
+import random 
 class Path: 
 	"""
 	A class representing the path between two pipe sources 
@@ -88,6 +90,7 @@ class Pipe:
 		self.letter = letter
 		self.sources = []
 		self.paths = []
+		self.discarded = []
 		self.solution = Path()
 
 	def __str__(self):
@@ -105,6 +108,66 @@ class Pipe:
 			s += "\tSolution: {0}".format(self.solution)
 		return s
 
+	"""
+	Overloading a bunch of operators for priority queue comparisons
+	Not sure if all of these will be necessary, but I'm going to just throw them in just in case
+	Plus they're simple so whatever
+	"""
+	def __lt__(self, other):
+		"""
+		Overloads the < operator for pipes
+		other is assumed to be of type Pipe
+		Returns true if the size of the current pipe's paths list is less than the size of other's paths list
+		"""
+		if len(self.paths) < len(other.get_paths()):
+			return True
+		else:
+			return False
+
+	def __le__(self, other):
+		"""
+		Overloads the <= operator for pipes
+		other is assumed to be of type Pipe
+		Returns true if the size of the current pipe's paths list is less than or equal to the size of other's paths list
+		"""
+		if len(self.paths) <= len(other.get_paths()):
+			return True
+		else:
+			return False
+
+	def __gt__(self, other):
+		"""
+		Overloads the > operator for pipes
+		other is assumed to be of type Pipe
+		Returns true if the size of the current pipe's paths list is greather than the size of other's paths list
+		"""
+		if len(self.paths) > len(other.get_paths()):
+			return True
+		else:
+			return False
+
+	def __ge__(self, other):
+		"""
+		Overloads the >= operator for pipes
+		other is assumed to be of type Pipe
+		Returns true if the size of the current pipe's paths list is greater than or equal to the size of other's paths list
+		"""
+		if len(self.paths) >= len(other.get_paths()):
+			return True
+		else:
+			return False
+		
+	def __ne__(self, other):
+		"""
+		Overloads the != operator for pipes
+		other is assumed to be of type Pipe
+		Returns true if the size of the current pipe's paths list is not equal to the size of other's paths list
+		"""
+		if len(self.paths) != len(other.get_paths()):
+			return True
+		else:
+			return False
+	
 	def get_letter(self):
 		"""
 		Returns the pipe's letter
@@ -141,10 +204,12 @@ class Pipe:
 	
 	def remove_path(self, path):
 		"""
-		Removes a path from paths
+		Removes a path from paths and puts it into the discarded list
 		"""
-		if path in self.paths:
-			self.paths.remove(path)
+		for i in range(len(self.paths)):
+			if path == self.paths[i]:
+				self.discarded.append(self.paths.pop(i))
+				break
 			
 	def get_paths(self):
 		"""
@@ -164,6 +229,42 @@ class Pipe:
 		"""
 		return self.solution
 
+	def set_discarded(self, discarded):
+		"""
+		Setter method for discarded
+		"""
+		self.discarded = discarded
+
+	def get_discarded(self):
+		"""
+		Getter method for discarded
+		"""
+		return self.discarded
+
+	def remove_from_discarded(self, path):
+		"""
+		Removes a path from the discarded list and puts it back into paths
+		"""
+		if path in self.discarded:
+			self.paths.append(self.discarded.remove(path))
+
+	def remove_from_discarded_most_recent(self):
+		"""
+		Removes the most recently added path and moves it back to paths
+		"""
+		self.paths.append(self.discarded.pop())
+
+	def reset_paths(self):
+		"""
+		Resets the paths list by adding all paths in discarded back into paths
+		"""
+		if len(self.paths) == 0:
+			self.paths = self.discarded
+			self.discarded = []
+		else:
+			for path in self.discarded:
+				self.remove_from_discarded(path)
+
 	def copy(self):
 		"""
 		Returns a copy of this pipe
@@ -172,6 +273,7 @@ class Pipe:
 		copy.set_sources(self.get_sources().copy())
 		copy.set_paths(self.get_paths().copy())
 		copy.set_solution(self.get_solution().copy())
+		copy.set_discarded(self.get_discarded().copy())
 		return copy
 
 class Board:
@@ -224,6 +326,12 @@ class Board:
 				return pipe
 		# Assume that we never request an invalid letter. Probably want to add error checking 
 
+	def set_pipes(self, pipes):
+		"""
+		Setter method for pipes
+		"""
+		self.pipes = pipes
+
 	def get_pipes(self):
 		"""
 		Getter method for pipes
@@ -264,6 +372,12 @@ class Board:
 		if coord in self.empty:
 			self.empty.remove(coord)
 
+	def set_empty(self, empty):
+		"""
+		Setter function for empty
+		"""
+		self.empty = empty
+		
 	def get_empty(self):
 		"""
 		Getter function for empty
@@ -281,6 +395,15 @@ class Board:
 		Getter function for dimension
 		"""
 		return self.dimension
+
+	def copy(self):
+		"""
+		Returns a copy of this Board object
+		"""
+		copy = Board()
+		copy.set_pipes(self.get_pipes_copy())
+		copy.set_empty(self.get_empty().copy())
+		copy.set_dimension(self.get_dimension())
 
 def parse_file(file):
 	"""
@@ -314,7 +437,7 @@ def parse_file(file):
 				pipe.add_sources((x,y))
 	return board
 
-def write_to_file(file, board):
+def write_to_file(file, board, num_attempts):
 	"""
 	A function that writes a board state to a text file
 
@@ -339,6 +462,96 @@ def write_to_file(file, board):
 			for x in range(len(state[0])):
 				f.write("{0}".format(state[x][y]))
 			f.write("\n")
+		f.write("Number of attempted assignments: {0}".format(num_attempts))
+
+def append_to_file(file, board, num_attempts):
+	"""
+	A function that writes a board state to a text file
+
+	Arguments:
+		file {string}: The name of the output file
+		board {Board object}: The current state of the board
+
+	Returns:
+		Nothing, but writes to a file
+	"""
+	state = []
+	for i in range(board.get_dimension()):
+		state.append(["_"] * board.get_dimension())
+	for pipe in board.get_pipes():
+		path = pipe.get_solution()
+		letter = pipe.get_letter()
+		for coord in path.get_path(): 
+			state[coord[0]][coord[1]] = letter
+	file = "Outputs/" + file
+	with open(file, mode="w+") as f:
+		for y in range(len(state)):
+			for x in range(len(state[0])):
+				f.write("{0}".format(state[x][y]))
+			f.write("\n")
+		f.write("Number of attempted assignments: {0}".format(num_attempts))
+
+def completion_check_full(assignment):
+	"""
+	Checks if the board has a complete, consistent assignment
+
+	Arguments:
+		assignment {list of Pipe objects}: represents all pipes that have assignments
+
+	Returns:
+		True if the board's current assignment is complete and consistent, False if it isn't
+	"""
+	if len(assignment) == 0:
+		return False
+	for pipe in assignment:
+		if pipe.get_solution().length() == 0:
+			return False
+	for i in range(len(assignment) - 1):
+		path = assignment[i].get_solution()
+		for j in range(i + 1, len(assignment)):
+			other_path = assignment[j].get_solution()
+			if check_intersection(path, other_path): # The paths intersect!
+				return False
+	return True
+
+def consistency_check_partial(assignment, path):
+	"""
+	Checks if a path is consistent with the current assignment
+	
+	Arguments:
+		assignment {list of Pipe objects}: represents all pipes that have assignments
+		path {Path object}: the path we want to check 
+
+	Returns:
+		True if the path is consistent with the assignment, False if it isn't
+	"""
+	if len(assignment) == 0:
+		return True
+	for pipe in assignment:
+		if check_intersection(path, pipe.get_solution()):
+			return False
+	return True
+
+def random_selection(obj_list):
+	"""
+	Randomly select something out of the list of objects and return it
+	obj_list will either be a list of pipes (i.e., get a random pipe) or a list of paths (i.e., get a random path)
+	"""
+	bound = len(obj_list)
+	return obj_list[math.floor(bound * random.random())]
+
+def lcv_selection(paths):
+	"""
+	Selects the least constraining path 
+	For now, assumes that the path with the shortest length will be the least constraining 
+	Prooooooobably want to change that later
+	"""
+	smallest_path = paths[0]
+	for i in range(1, len(paths)):
+		other_path = paths[i]
+		if len(other_path.get_path()) < len(smallest_path.get_path()):
+			smallest_path = other_path
+	return smallest_path
 
 def check_intersection(path1, path2):
 	"""
@@ -358,6 +571,69 @@ def check_intersection(path1, path2):
 			if coord1 == coord2: 
 				return True
 	return False
+
+def forward_checking(path, unassigned, removed):
+	"""
+	Enacts forward checking on the remaining pipes 
+	Basically moves all paths in the unassigned pipes that intersect the given path into the "discarded" stack
+	Keeps track of how many paths were discarded for each pipe
+	Since discarded is a stack, the n most recently added paths correspond to the value n associated with each pipe in the removed dictionary
+	Damn I'm clever ;^)
+
+	Arguments:
+		path {Path object}: the path we are currently assigning to a Pipe
+		unassigned {list of Pipe objects}: the remaining pipes in the puzzle that don't have an assignment yet
+		removed {dictionary of strings to ints -- {Pipe.get_letter() : # paths removed by forward checking}}: keeps track of the number of removed paths for recursive purposes
+	"""
+	if len(unassigned) == 0:
+		return None
+	for pipe in unassigned:
+		for path2 in pipe.get_paths():
+			if check_intersection(path, path2):
+				pipe.remove_path(path2)
+				if pipe.get_letter() in removed.keys():
+					removed[pipe.get_letter()] += 1
+				else:
+					removed[pipe.get_letter()] = 1
+
+def revert_pruning(pipes, removed):
+	"""
+	Puts the paths back where they belonged before they were pruned
+
+	Arguments:
+		pipes {list of Pipe objects}: The pipes that need to be reverted. Represents the unassigned pipes in BT
+		removed {dictionary of Pipe identifiers (i.e., letters of type string) to ints (i.e., the number of paths that were pruned)}
+
+	Returns:
+		Nothing
+	"""
+	for letter in removed.keys():
+		for pipe in pipes:
+			if pipe.get_letter() == letter:
+				for j in range(removed[letter], 0, -1):
+					pipe.remove_from_discarded_most_recent()
+
+def check_empty(pipes):
+	"""
+	A helper function that checks if any of the pipes given have no available paths 
+
+	Arguments: 
+		pipes {list of Pipe objects}: The pipes under consideration 
+
+	Returns:
+		True if one of the pipes is empty, False otherwise
+	"""
+	for pipe in pipes:
+		if len(pipe.get_paths()) == 0:
+			return True
+	return False
+
+def assign_to_board(assignment, board):
+	"""
+	Helper function that copies the complete, consistent assignment to the board object
+	"""
+	for pipe in assignment:
+		board.get_pipe(pipe.get_letter()).set_solution(pipe.get_solution())
 
 if __name__ == "__main__":
 	board = parse_file("Inputs/input55.txt");

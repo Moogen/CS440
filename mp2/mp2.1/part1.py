@@ -1,10 +1,10 @@
 from utils import * 
 import sys
-import random 
-import math
+import heapq
+import cProfile
 
 DIRS = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-
+NUM_ATTEMPTS = 0
 def dumb_solution(file):
 	"""
 	The "dumb" solution to the flow free CSP 
@@ -42,17 +42,95 @@ def dumb_solution(file):
 	unassigned = board.get_pipes_copy()
 	if dumb_BT(assignment, unassigned):
 		assign_to_board(assignment, board)
-		filepath = "output" + file[file.find("t") + 1:]
-		write_to_file(filepath, board)
+		filepath = "output_dumb" + file[file.find("t") + 1:]
+		write_to_file(filepath, board, NUM_ATTEMPTS)
 	else:
 		print("Cannot find a solution for this game")
 	
-def assign_to_board(assignment, board):
+def smart_solution(file):
 	"""
-	Helper function that copies the complete, consistent assignment to the board object
+	The "smart" solution to the flow free CSP 
+	Selects the most constrained variable and then the least constraining value 
+	Implements forward checking - every time a value is assigned to a variable, all intersecting paths are deleted. 
+		If a Pipe ever has 0 valid paths left, we can immediately start backtracking
+	The CSP is defined as follows:
+		Variables: Each abstract pipe on the board 
+		Values: The paths between the two pipe sources
+		Constraints: The paths should never intersect or go off the bounds of the board
+
+		A complete, consistent assignment will assign a path to each pipe without violating any constraints. 
+		Assume that a complete, consistent assignment will leave no empty squares on the board. 
+		Unsure if this assumption is warranted.
+
+	Arguments: 
+		file {string} - The name of the file that holds the board we want to solve
+
+	Returns:
+		Nothing. Writes the solution to an output file if it exists
 	"""
-	for pipe in assignment:
-		board.get_pipe(pipe.get_letter()).set_solution(pipe.get_solution())
+	# Open the file and initialize the board and all pipes
+	filepath = "Inputs/" + file
+	board = parse_file(filepath)
+	
+	# Fill out the list of possible values 
+	for pipe in board.pipes:
+		start, end = pipe.get_sources()
+		valid = board.get_empty()
+		valid.append(end)
+		visited = Path()
+		pipe.set_paths(generate_paths(visited, start, end, valid))
+
+	assignment = []
+	unassigned = board.get_pipes_copy()
+	heapq.heapify(unassigned)
+
+	# Run a recursive BT search on all the pipes to find a complete, consistent assignment of paths (if it exists)
+	if smart_BT(assignment, unassigned):
+		assign_to_board(assignment, board)
+		filepath = "output_smart" + file[file.find("t") + 1:]
+		write_to_file(filepath, board, NUM_ATTEMPTS)
+	else:
+		print("Cannot find a solution for this game")
+	
+def composite_solution(file):
+	"""
+	Attempts both the dumb and the smart assignment algorithms
+	"""
+	global NUM_ATTEMPTS
+	filepath = "Inputs/" + file
+	board_dumb = parse_file(filepath)
+	
+	# Fill out the list of possible values 
+	for pipe in board_dumb.pipes:
+		start, end = pipe.get_sources()
+		valid = board_dumb.get_empty()
+		valid.append(end)
+		visited = Path()
+		pipe.set_paths(generate_paths(visited, start, end, valid))
+
+	board_smart = board_dumb.copy()
+
+	assignment = []
+	unassigned = board_dumb.get_pipes_copy()
+	if dumb_BT(assignment, unassigned):
+		assign_to_board(assignment, board_dumb)
+		filepath = "output_composite" + file[file.find("t") + 1:]
+		append_to_file(filepath, board_dumb, NUM_ATTEMPTS)
+	else:
+		print("Cannot find a solution for this game using dumb BT search")
+
+	assignment = []
+	unassigned = board_smart.get_pipes_copy()
+	heapq.heapify(unassigned)
+
+	NUM_ATTEMPTS = 0
+	# Run a recursive BT search on all the pipes to find a complete, consistent assignment of paths (if it exists)
+	if smart_BT(assignment, unassigned):
+		assign_to_board(assignment, board_smart)
+		filepath = "output_composite" + file[file.find("t") + 1:]
+		append_to_file(filepath, board, NUM_ATTEMPTS)
+	else:
+		print("Cannot find a solution for this game using smart BT search")
 
 def generate_paths(visited, start, goal, valid):
 	"""
@@ -100,91 +178,75 @@ def dumb_BT(assignment, unassigned):
 	Returns:
 		True if a complete, consistent assignment has been found, False if it doesn't exist
 	"""
+	global NUM_ATTEMPTS
 	if len(unassigned) == 0:
 		if completion_check_full(assignment):
 			return True
 		else:
 			return False
-	tested_paths = []
 	pipe = random_selection(unassigned)
 	unassigned.remove(pipe)
 	while(len(pipe.get_paths()) != 0):
 		path = random_selection(pipe.get_paths())
 		pipe.remove_path(path)
-		tested_paths.append(path)
 		if consistency_check_partial(assignment, path):
 			assignment.append(pipe)
 			pipe.set_solution(path)
+			NUM_ATTEMPTS += 1
 			if dumb_BT(assignment, unassigned):
 				return True
 			else:
 				assignment.remove(pipe)
-	pipe.set_paths(tested_paths)
+	pipe.reset_paths()
 	unassigned.append(pipe)
 	return False
-
-def completion_check_full(assignment):
+	
+def smart_BT(assignment, unassigned):
 	"""
-	Checks if the board has a complete, consistent assignment
+	A recursive backtracking algorithm to find a complete, consistent assignment for all pipes in a "smart" way
+	"Smart" Implementation: selects the most constrained variable and then the least constraining value
+		Also implements forward checking by deleting intersecting paths everytime a value is assigned to a variable. 
+		If a Pipe ever has 0 valid paths left, we can immediately start backtracking
+	Edits the assignment list in place
 
 	Arguments:
-		assignment {list of Pipe objects}: represents all pipes that have assignments
+		assignment {list of Pipe objects}: a list holding all pipes that currently have assignments
+		unassigned {priority queue of Pipe objects}: a list holding all pipes that currently do not have assignments
 
 	Returns:
-		True if the board's current assignment is complete and consistent, False if it isn't
+		True if a complete, consistent assignment has been found, False if it doesn't exist
 	"""
-	if len(assignment) == 0:
-		return False
-	for pipe in assignment:
-		if pipe.get_solution().length() == 0:
+	global NUM_ATTEMPTS
+	if len(unassigned) == 0:
+		if completion_check_full(assignment):
+			return True
+		else:
 			return False
-	for i in range(len(assignment) - 1):
-		path = assignment[i].get_solution()
-		for j in range(i + 1, len(assignment)):
-			other_path = assignment[j].get_solution()
-			if check_intersection(path, other_path): # The paths intersect!
-				return False
-	return True
+	pipe = heapq.heappop(unassigned)
+	num_removed = 0
+	while(len(pipe.get_paths()) != 0):
+		path = lcv_selection(pipe.get_paths())
+		pipe.remove_path(path)
+		num_removed += 1
+		if consistency_check_partial(assignment, path):
+			assignment.append(pipe)
+			pipe.set_solution(path)
+			NUM_ATTEMPTS += 1
+			num_pruned = {}
+			forward_checking(path, unassigned, num_pruned)
+			if check_empty(unassigned):
+				revert_pruning(unassigned, num_pruned)
+				continue
+			if smart_BT(assignment, unassigned):
+				return True
+			else: # No valid assignments were found
+				revert_pruning(unassigned, num_pruned)
+				assignment.remove(pipe)
+	for j in range(num_removed, 0, -1):
+		pipe.remove_from_discarded_most_recent()
+	heapq.heappush(unassigned, pipe)
+	return False
 
-def consistency_check_partial(assignment, path):
-	"""
-	Checks if a path is consistent with the current assignment
-	
-	Arguments:
-		assignment {list of Pipe objects}: represents all pipes that have assignments
-		path {Path object}: the path we want to check 
-
-	Returns:
-		True if the path is consistent with the assignment, False if it isn't
-	"""
-	if len(assignment) == 0:
-		return True
-	for pipe in assignment:
-		if check_intersection(path, pipe.get_solution()):
-			return False
-	return True
-
-def random_selection(obj_list):
-	"""
-	Randomly select something out of the list of objects and return it
-	obj_list will either be a list of pipes (i.e., get a random pipe) or a list of paths (i.e., get a random path)
-	"""
-	bound = len(obj_list)
-	return obj_list[math.floor(bound * random.random())]
-
-def smart_solution(file):
-	# Open the file and initialize the board and all pipes
-	file = "Inputs/" + file
-	board = parse_file(file)
-	
-	# Fill out the list of possible values 
-	for pipe in board.pipes:
-		start, end = pipe.get_sources()
-		valid = board.get_empty()
-		valid.append(end)
-		visited = Path()
-		pipe.set_paths(generate_paths(visited, start, end, valid))
-	
 def print_usage():
 	print("To use:\npython part1.py  [dumb | smart] [input55 | input77 | input88 | input99].txt")
 
@@ -200,3 +262,7 @@ if __name__ == "__main__":
 			for i in range(2, len(sys.argv)):
 				file = sys.argv[i]
 				smart_solution(file)
+		elif sys.argv[1] == "composite":
+			for i in range(2, len(sys.argv)):
+				file = sys.argv[i]
+				composite_solution(file)
