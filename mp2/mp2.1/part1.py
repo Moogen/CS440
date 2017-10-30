@@ -92,10 +92,10 @@ def smart_solution(file):
 	else:
 		print("Cannot find a solution for this game")
 	
+"""
+# Forget about this for now
 def composite_solution(file):
-	"""
-	Attempts both the dumb and the smart assignment algorithms
-	"""
+	#Attempts both the dumb and the smart assignment algorithms
 	global NUM_ATTEMPTS
 	filepath = "Inputs/" + file
 	board_dumb = parse_file(filepath)
@@ -131,6 +131,7 @@ def composite_solution(file):
 		append_to_file(filepath, board, NUM_ATTEMPTS)
 	else:
 		print("Cannot find a solution for this game using smart BT search")
+"""
 
 def generate_paths(visited, start, goal, valid):
 	"""
@@ -262,7 +263,9 @@ if __name__ == "__main__":
 			for i in range(2, len(sys.argv)):
 				file = sys.argv[i]
 				smart_solution(file)
+		"""
 		elif sys.argv[1] == "composite":
 			for i in range(2, len(sys.argv)):
 				file = sys.argv[i]
 				composite_solution(file)
+		"""
