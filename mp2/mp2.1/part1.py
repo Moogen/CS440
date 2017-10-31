@@ -226,8 +226,9 @@ def smart_BT(assignment, unassigned):
 	pipe = heapq.heappop(unassigned)
 	num_removed = 0
 	while(len(pipe.get_paths()) != 0):
-		path = lcv_selection(pipe.get_paths())
-		pipe.remove_path(path)
+		# path = lcv_selection(pipe.get_paths())
+		path = pipe.get_lcv()
+		# pipe.remove_path(path)
 		num_removed += 1
 		if consistency_check_partial(assignment, path):
 			assignment.append(pipe)
