@@ -1,5 +1,7 @@
 import math
 import random 
+import heapq
+
 class Path: 
 	"""
 	A class representing the path between two pipe sources 
@@ -17,6 +19,66 @@ class Path:
 		Defined for print statements
 		"""
 		return "{0}".format(self.path)
+
+	"""
+	Overloading a bunch of operators for priority queue comparisons
+	Not sure if all of these will be necessary, but I'm going to just throw them in just in case
+	Plus they're simple so whatever
+	"""
+	def __lt__(self, other):
+		"""
+		Overloads the < operator for pipes
+		other is assumed to be of type Path
+		Returns true if the current path is shorter than the other path
+		"""
+		if len(self.path) < len(other.get_path()):
+			return True
+		else:
+			return False
+
+	def __le__(self, other):
+		"""
+		Overloads the <= operator for pipes
+		other is assumed to be of type Path
+		Returns true if the current path is shorter or equal in length with the other path
+		"""
+		if len(self.path) <= len(other.get_path()):
+			return True
+		else:
+			return False
+
+	def __gt__(self, other):
+		"""
+		Overloads the > operator for pipes
+		other is assumed to be of type Path
+		Returns true if the current path is longer than the other path
+		"""
+		if len(self.path) > len(other.get_path()):
+			return True
+		else:
+			return False
+
+	def __ge__(self, other):
+		"""
+		Overloads the >= operator for pipes
+		other is assumed to be of type Path
+		Returns true if the current path is longer or equal in length with the other path
+		"""
+		if len(self.path) >= len(other.get_path()):
+			return True
+		else:
+			return False
+		
+	def __ne__(self, other):
+		"""
+		Overloads the != operator for pipes
+		other is assumed to be of type Path
+		Returns true if the current path is not equal in length with the other path
+		"""
+		if len(self.path) != len(other.get_path()):
+			return True
+		else:
+			return False
 
 	def add_coord(self, coord): 
 		"""
@@ -139,7 +201,7 @@ class Pipe:
 		"""
 		Overloads the > operator for pipes
 		other is assumed to be of type Pipe
-		Returns true if the size of the current pipe's paths list is greather than the size of other's paths list
+		Returns true if the size of the current pipe's paths list is greater than the size of other's paths list
 		"""
 		if len(self.paths) > len(other.get_paths()):
 			return True
@@ -199,18 +261,22 @@ class Pipe:
 	def set_paths(self, paths):
 		"""
 		Setter method for paths
+		Applies heapsort to paths to make sure it is a min-heap
 		"""
 		self.paths = paths
+		heapq.heapify(self.paths)
 	
 	def remove_path(self, path):
 		"""
 		Removes a path from paths and puts it into the discarded list
+		Maintains paths as a min-heap. Discarded is NOT a heap
 		"""
 		for i in range(len(self.paths)):
 			if path == self.paths[i]:
 				self.discarded.append(self.paths.pop(i))
 				break
-			
+		heapq.heapify(self.paths)
+
 	def get_paths(self):
 		"""
 		Getter method for paths
@@ -244,26 +310,38 @@ class Pipe:
 	def remove_from_discarded(self, path):
 		"""
 		Removes a path from the discarded list and puts it back into paths
+		Maintains paths as a min-heap
 		"""
 		if path in self.discarded:
-			self.paths.append(self.discarded.remove(path))
+			heapq.heappush(self.paths, self.discarded.remove(path))
 
 	def remove_from_discarded_most_recent(self):
 		"""
 		Removes the most recently added path and moves it back to paths
+		Maintains paths as a min-heap
 		"""
-		self.paths.append(self.discarded.pop())
+		heapq.heappush(self.paths, self.discarded.pop())
 
 	def reset_paths(self):
 		"""
 		Resets the paths list by adding all paths in discarded back into paths
+		Makes sure to maintain the heap properties of paths
 		"""
 		if len(self.paths) == 0:
 			self.paths = self.discarded
 			self.discarded = []
+			heapq.heapify(self.paths)
 		else:
 			for path in self.discarded:
 				self.remove_from_discarded(path)
+
+	def get_lcv(self):
+		"""
+		If paths is not empty, returns the shortest path
+		"""
+		lcv = heapq.heappop(self.paths)
+		self.discarded.append(lcv)
+		return lcv
 
 	def copy(self):
 		"""
@@ -456,7 +534,7 @@ def write_to_file(file, board, num_attempts):
 		letter = pipe.get_letter()
 		for coord in path.get_path(): 
 			state[coord[0]][coord[1]] = letter
-	file = "Outputs/" + file
+	file = "Outputs/Test/" + file
 	with open(file, mode="w") as f:
 		for y in range(len(state)):
 			for x in range(len(state[0])):
