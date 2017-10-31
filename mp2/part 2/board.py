@@ -114,22 +114,44 @@ def make_move(white_workers, black_workers, white_turn, move):
 
 def winner_exists(white_workers, black_workers):
 	#check for a winning white worker - y should be board_size-1
-	if (board_height - 1) in white_workers[:, 1:]:
+	if (board_height - 1) in white_workers[:, 1:] or len(black_workers) == 0:
 		return True, 9999, "white"
 
 	#check for a winning black worker - y should be 0
-	if 0 in black_workers[:, 1:]:
+	if 0 in black_workers[:, 1:] or len(white_workers) == 0:
 		return True, 9999, "black"
 
 	return False, 0, "none"
 
 def print_board(white_workers, black_workers):
-	board = [["_" for i in range(board_width)]for j in range(board_height)]
+	board = [["-" for i in range(board_width)]for j in range(board_height)]
 	for worker in white_workers:
 		board[int(worker[1])][int(worker[0])] = "W"
 	for worker in black_workers:
 		board[int(worker[1])][int(worker[0])] = "B"
-	for i in range(board_height):
+	for i in range(board_height - 1, -1, -1):
 		for j in board[i]:
 			print(j, end = '')
 		print("\n")
+
+def winner_exists_ec(white_workers, black_workers):
+	#check to see if white or black have less than 3 pieces
+	if (len(white_workers) < 3):
+		return True, 9999, "black"
+	if (len(black_workers) < 3):
+		return True, 9999, "white"
+	#check if 3 workers
+	whitecount = 0
+	for worker in white_workers[:, 1:]:
+		if (worker == board_height - 1):
+			whitecount += 1
+	if whitecount >= 3:
+		return True, 9999, "white"
+	blackcount = 0
+	for worker in black_workers[:, 1:]:
+		if (worker == 0):
+			blackcount += 1
+	if blackcount >= 3:
+		return True, 9999, "black"
+		
+	return False, 0, "none"
