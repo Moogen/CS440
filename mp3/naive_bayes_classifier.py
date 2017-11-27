@@ -36,7 +36,7 @@ class NBC:
 		P(C == c_k | F_00 AND F_01 AND ... F_ij for all i, j) = log(P(C == c_k)) + log(P(F_00 == 1 | C == c_k)) + ... log(P(F_ij == 1 | C == c_k))
 	"""
 	def __init__(self, dim_x, dim_y, num_filler, classes, features, laplace_v, laplace_k, training_data_location, 
-		training_labels_location, test_data_location, test_labels_location, test_out_location):
+		training_labels_location, test_data_location, test_labels_location, test_out_location, num_tests):
 		"""
 		Initializes a Naive Bayes Classifier object
 
@@ -53,6 +53,7 @@ class NBC:
 			test_data_location: The file location of the test data
 			test_labels_location: The file location of the test labels. Obviously, only use this to compare results
 			test_out_location: The file location that we want to put the output file when we test the classifier
+			num_tests: The total number of test images this NBC will look at.
 		"""
 		self.dim_x = dim_x
 		self.dim_y = dim_y
@@ -62,18 +63,38 @@ class NBC:
 		self.dim_z = len(self.classes)
 		self.laplace_v = laplace_v
 		self.laplace_k = laplace_k
-		self.training_data_location = training_data
+		self.training_data_location = training_data_location
 		self.training_labels_location = training_labels_location
 		self.test_data_location = test_data_location
 		self.test_labels_location = test_labels_location
 		self.test_out_location = test_out_location
 
 		self.classifier = np.full((self.dim_x, self.dim_y, self.dim_z), self.laplace_k) # The 3D array representing likelihood estimators for each feature at (i, j)
-		self.class_frequencies = np.full((1, dim_z), 0) # An array of prior frequencies for each class 
-		self.class_probabilities = np.full((1, dim_z), math.inf) # An array of prior probabilities for each class. Separate from the above because the frequencies are used sometimes, so it's useful to be able to access both. 
+		self.class_frequencies = np.full(self.dim_z, 0) # An array of prior frequencies for each class 
+		self.class_probabilities = np.full(self.dim_z, math.inf) # An array of prior probabilities for each class. Separate from the above because the frequencies are used sometimes, so it's useful to be able to access both. 
 			# Each class probability is initialized to infinity until they are updated to their proper values
 		self.num_examples = 0 # The total number of training examples we read in 
+		self.num_tests = num_tests
 
+	def __str__(self):
+		"""
+		Returns a string representation of the naive bayes classifier
+		"""
+		out = ""
+		out += "Classifier dimensions: ({0}, {1}, {2})\n".format(self.dim_x, self.dim_y, self.dim_z)
+		out += "Smoothing variables - V: {0}, K: {1}\n".format(self.laplace_v, self.laplace_k)
+		out += "Class frequencies: {0}\n".format(self.class_frequencies)
+		out += "Class probabilities: {0}\n".format(self.class_probabilities)
+		for k in range(self.dim_z):
+			out += "Likelihood Estimators of class {0}\n".format(k)
+			for j in range(self.dim_y):
+				for i in range(self.dim_x):
+					out += "{0}  ".format(self.classifier[i, j, k])
+				out += "\n"
+			out += "\n\n"
+		return out
+
+			
 	"""
 	Lots of boilerplate for the useful getters and setters -_-
 	"""
@@ -119,59 +140,57 @@ class NBC:
 		else:
 			self.classifier[i, j, k] += 1
 
-	def get_class_frequency(self, k):
-		"""
-		Returns the number of times class k has appeared in the training examples
-		For the inputs relevant to this MP, all classes will be integers
-		If k IS an int, it should be zero-indexed
-		Unlike feature frequencies, this is always a useful method because we maintain a separate list of class probabilities
-		"""
-		try:
-			return self.class_frequencies[k]
-		except IndexError:
-			print("This class either does not exist, or it needs to be zero-index'd")
-			return -1
-	
 	def get_feature_probability(self, i, j, k):
 		"""
 		Gets the probability of feature (i, j) having F_ij == 1
 		Only useful after the NBC has been trained since the frequencies originally stored in the 3D array will be converted to probabilities
 		"""
-		if self.classificer[i, j, k] > 1:
+		if self.classifier[i, j, k] > 1:
 			print("Feature frequencies have not been converted to probabilities so this information will not be useful")
 			return -1
 		else:
 			return self.classifier[i, j, k]
 
+	def get_class_frequency(self, k):
+		"""
+		Returns the number of times class k has appeared in the training examples
+		For the inputs relevant to this MP, all classes will be integers
+		Classes are not assumed to be zero-indexed
+		Unlike feature frequencies, this is always a useful method because we maintain a separate list of class probabilities
+		"""
+		try: 
+			return self.class_frequencies[self.classes.index(k)]
+		except IndexError:
+			print("This class does not exist")
+
 	def increment_class_frequency(self, k):
 		"""
 		Increments the record of how many times class k has appeared in the training examples 
 		For the inputs relevant to this MP, all classes will be integers 
-		If k IS an int, it should be zero-indexed
+		Classes are not assumed to be zero-indexed
 		Unlike feature frequencies, this is always a useful method because we maintain a separate list of class probabilities
 		"""
 		try:
-			self.class_frequencies[k] += 1
+			self.class_frequencies[self.classes.index(k)] += 1
 		except IndexError:
-			print("This class either does not exist, or it needs to be zero-index'd")
-		
+			print("This class does not exist")
+
 	def get_class_probability(self, k):
 		"""
 		Returns the probability of class k appearing
 		Only useful after training since we convert the class frequencies to probabilities at the end
 		For the inputs relevant to this MP, all classes will be integers
-		If k IS an int, it should be zero-indexed
+		Classes are not assumed to be zero-indexed
 		"""
 		try:
-			if self.class_probabilities[k] == math.inf:
+			if self.class_probabilities[self.classes.index(k)] == math.inf:
 				print("Class probabilities have not been updated yet (i.e., this NBC is still training")
 				return -1
 			else:
-				return self.class_probabilities[k]
+				return self.class_probabilities[self.classes.index(k)]
 		except IndexError:
-			print("This class either does not exist, or it needs to be zero-index'd")
+			print("This class does not exist")
 			return -1
-		
 		
 	def update_class_probabilities(self):
 		"""
@@ -201,15 +220,13 @@ class NBC:
 				label = int(label)
 				self.increment_class_frequency(label)
 				self.increment_num_examples()
-				sample = ""
 				for j in range(self.dim_y):
-					sample += TD.readline().strip()
-				for j in range(self.num_filler):
-					TD.readline()
-				for j in range(self.dim_y):
+					line = TD.readline()
 					for i in range(self.dim_x):
-						if self.features[sample[j * dim_x + i]] == 1:
-							self.increment_feature_frequency(i, j, label)
+						if self.features[line[i]] == 1:
+							self.increment_feature_frequency(i, j, self.classes.index(label))
+				for i in range(self.num_filler):
+					TD.readline()
 
 	def convert_to_likelihoods(self):
 		"""
@@ -224,29 +241,50 @@ class NBC:
 	def test_NBC(self):
 		"""
 		Tests the Naive Bayes Classifier by attempting to classify novel examples
+
+		num_tests (int): The total number of test images we are passed
 		"""
-		with open(self.test_data_location) as TD, open(self.test_out_location) as TO:
-			while True:
+		with open(self.test_data_location) as TD, open(self.test_out_location, 'w') as TO:
+			for tests in range(self.num_tests):
 				classifications = np.zeros(self.dim_z)
 				for k in range(self.dim_z):
-					classifications.append(math.log(self.get_class_probability(k)))
-				sample = ""
+					classifications[k] += math.log(self.get_class_probability(self.classes[k]))
 				for j in range(self.dim_y):
 					line = TD.readline()
-					if line == "":
-						break
-					sample += line.strip()
-				for j in range(self.num_filler):
-					TD.readline()
-				for j in range(self.dim_y):
 					for i in range(self.dim_x):
 						for k in range(self.dim_z):
-							if self.features[sample[j * dim_x + i]] == 1:
+							if self.features[line[i]] == 1:
 								classifications[k] += math.log(self.get_feature_probability(i, j, k))
+				for i in range(self.num_filler):
+					TD.readline()
 				max_index = 0
 				max_val = -math.inf
-				for k in range(dim_z):
+				for k in range(self.dim_z):
 					if classifications[k] > max_val:
 						max_index = k
 						max_val = classifications[k]
 				TO.write("{0}\n".format(max_index))
+
+	def evaluate_accuracy(self):
+		# TODO:
+		# Confusion Matrix and Odds Ratios
+		classification_frequency = np.zeros(self.dim_z)
+		classification_total = np.zeros(self.dim_z)
+
+		with open(self.test_labels_location) as TL, open(self.test_out_location) as TO:
+			for rem in range(self.num_tests):
+				prediction = int(TO.readline())
+				ground_truth = int(TL.readline())
+				if prediction == ground_truth:
+					classification_frequency[self.classes.index(ground_truth)] += 1
+					classification_total[self.classes.index(ground_truth)] += 1
+				else: 
+					classification_total[self.classes.index(ground_truth)] += 1
+			for rem in range(classification_frequency.size):
+				classification_frequency[rem] = classification_frequency[rem] / classification_total[rem]
+				print("Class: {0}, Accuracy: {1}\n".format(rem, classification_frequency[rem]))
+			average = 0
+			for rem in range(classification_frequency.size):
+				average += classification_frequency[rem] 
+			average /= classification_frequency.size
+			print("Overall accuracy: {0}".format(average))
