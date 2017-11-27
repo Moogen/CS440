@@ -85,50 +85,15 @@ class NBC:
 		out += "Smoothing variables - V: {0}, K: {1}\n".format(self.laplace_v, self.laplace_k)
 		out += "Class frequencies: {0}\n".format(self.class_frequencies)
 		out += "Class probabilities: {0}\n".format(self.class_probabilities)
+		out += "Total number of training examples: {0}\n".format(self.num_examples)
 		for k in range(self.dim_z):
 			out += "Likelihood Estimators of class {0}\n".format(k)
 			for j in range(self.dim_y):
 				for i in range(self.dim_x):
-					out += "{0}  ".format(self.classifier[i, j, k])
+					out += "{0}  ".format(round(self.classifier[i, j, k], 3))
 				out += "\n"
 			out += "\n\n"
 		return out
-
-			
-	"""
-	Lots of boilerplate for the useful getters and setters -_-
-	"""
-	def get_x(self):
-		"""
-		Returns the width of the input
-		There is no associated setter. This is READ-ONLY.
-		"""
-		return self.dim_x
-
-	def get_y(self):
-		"""
-		Returns the height of the input
-		There is no associated setter. This is READ-ONLY.
-		"""
-		return self.dim_y
-
-	def get_z(self):
-		"""
-		Returns the number of classes 
-		There is no associated setter. This is READ-ONLY.
-		"""
-		return self.dim_z
-
-	def get_feature_frequency(self, i, j, k):
-		"""
-		Returns the number of times a feature (i, j) has had F_ij == 1
-		Only useful while the NBC is being trained; at the end of the training process, the frequencies are converted into probabilities
-		"""
-		if self.classifier[i, j, k] < 1 and self.laplace_k >= 1:
-			print("Feature frequencies have been converted to probabilities so this information is no longer useful")
-			return 0
-		else:
-			return self.classifier[i, j, k]
 
 	def increment_feature_frequency(self, i, j, k):
 		"""
@@ -235,7 +200,7 @@ class NBC:
 		Converts the feature frequencies to probabilities
 		"""
 		for k in range(self.dim_z):
-			denom = self.class_frequencies[k] + self.laplace_v + self.laplace_k
+			denom = self.class_frequencies[k] + self.laplace_v * self.laplace_k
 			for i in range(self.dim_x):
 				for j in range(self.dim_y):
 					self.classifier[i, j, k] /= denom
@@ -243,27 +208,26 @@ class NBC:
 	def test_NBC(self):
 		"""
 		Tests the Naive Bayes Classifier by attempting to classify novel examples
-
-		num_tests (int): The total number of test images we are passed
 		"""
 		with open(self.test_data_location) as TD, open(self.test_out_location, 'w') as TO:
 			for tests in range(self.num_tests):
 				classifications = np.zeros(self.dim_z)
 				for k in range(self.dim_z):
-					classifications[k] += math.log(self.get_class_probability(self.classes[k]))
+					classifications[k] += math.log(self.get_class_probability(self.classes[k]), 2)
 				sample = ""
 				for j in range(self.dim_y):
 					sample += TD.readline().strip('\n')
 				for j in range(self.num_filler):
 					TD.readline()
-				for j in range(self.dim_y):
-					for i in range(self.dim_x):
-						for k in range(self.dim_z):
+				for k in range(self.dim_z):
+					for j in range(self.dim_y):
+						for i in range(self.dim_x):
 							if self.features[sample[j * self.dim_x + i]] == 1:
-								classifications[k] += math.log(self.get_feature_probability(i, j, k))
+								classifications[k] += math.log(self.get_feature_probability(i, j, k), 2)
+							else:
+								classifications[k] += math.log(1 - self.get_feature_probability(i, j, k), 2)
 				max_index = 0
 				max_val = -math.inf
-				print(classifications)
 				for k in range(self.dim_z):
 					if classifications[k] > max_val:
 						max_index = k
@@ -287,9 +251,9 @@ class NBC:
 					classification_total[self.classes.index(ground_truth)] += 1
 			for rem in range(classification_frequency.size):
 				classification_frequency[rem] = classification_frequency[rem] / classification_total[rem]
-				print("Class: {0}, Accuracy: {1}\n".format(rem, classification_frequency[rem]))
+				print("Class: {0}, Accuracy: {1}\n".format(rem, round(classification_frequency[rem], 3)))
 			average = 0
 			for rem in range(classification_frequency.size):
 				average += classification_frequency[rem] 
 			average /= classification_frequency.size
-			print("Overall accuracy: {0}".format(average))
+			print("Overall accuracy: {0}".format(round(average, 3)))
