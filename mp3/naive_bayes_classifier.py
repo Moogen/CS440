@@ -1,6 +1,7 @@
 import numpy as np 
 import math
 import sys
+from graphics import *
 
 class NBC:
 	"""
@@ -266,3 +267,72 @@ class NBC:
 					confusion_matrix[i, j] = round(confusion_matrix[i, j], 3) * 100
 			print("Overall accuracy: {0}".format(round(average, 3)))
 			print(confusion_matrix)
+
+	def odd_ratios(self):
+		cell_size = 10
+		win = GraphWin('graphics', cell_size * self.dim_x, cell_size * self.dim_x)
+		c1, c2 = 8, 1
+		for i in range(self.dim_x):
+			for j in range(self.dim_x):
+				x, y = i * cell_size, j * cell_size
+				odds = math.log(self.classifier[i ,j, c1] / self.classifier[i, j, c2])
+				color = 'firebrick'
+				if odds < 1.5:
+					color = 'red'
+				if odds < 1.:
+					color = 'orange red'
+				if odds < 0.5:
+					color = 'orange'
+				if odds < 0:
+					color = 'yellow'
+				if odds < -0.5:
+					color = 'pale green'
+				if odds < -1:
+					color = 'aquamarine'
+				if odds < -1.5:
+					color = 'deep sky blue'
+				if odds < -2:
+					color = 'royal blue'
+				if odds < -2.5:
+					color = 'blue'
+				if odds < -3:
+					color = 'midnight blue'
+
+				"""
+				#feature classifier coloring - comment out if doing odd ratios
+				odds = math.log(self.classifier[i, j, c1])
+				color = 'firebrick'
+				if odds < -0.3:
+					color = 'red'
+				if odds < -0.6:
+					color = 'orange red'
+				if odds < -0.9:
+					color = 'orange'
+				if odds < -1.2:
+					color = 'yellow'
+				if odds < -1.5:
+					color = 'pale green'
+				if odds < -1.8:
+					color = 'aquamarine'
+				if odds < -2.1:
+					color = 'deep sky blue'
+				if odds < -2.4:
+					color = 'royal blue'
+				if odds < -2.7:
+					color = 'blue'
+				if odds < -3:
+					color = 'midnight blue'
+				"""
+
+
+				rect = Rectangle(Point(x, y), Point(x + cell_size, y + cell_size))
+				rect.setOutline(color)
+				rect.setFill(color)
+				rect.draw(win)
+
+
+
+		win.getMouse()
+		win.getMouse()
+		win.close()
+		print(self.classifier[:, :, c1].shape)

@@ -48,6 +48,8 @@ def digit_classifier(laplace_k):
 	NBC_digits.update_class_probabilities()
 	NBC_digits.test_NBC()
 	NBC_digits.evaluate_accuracy()
+	
+	#NBC_digits.odd_ratios()
 
 def mp1_2(laplace_k):
 	pass
