@@ -74,8 +74,11 @@ class NBC:
 		self.class_frequencies = np.zeros(self.dim_z) # An array of prior frequencies for each class 
 		self.class_probabilities = np.full(self.dim_z, math.inf) # An array of prior probabilities for each class. Separate from the above because the frequencies are used sometimes, so it's useful to be able to access both. 
 			# Each class probability is initialized to infinity until they are updated to their proper values
-		self.class_highest = np.full(self.dim_z, "")
-		self.class_lowest = np.full(self.dim_z, "")
+		self.class_highest = {} # Used to report the most and least "prototypical" examples of each class
+		self.class_lowest = {}
+		for i in range(self.dim_z):
+			self.class_highest[i] = (-math.inf, "")
+			self.class_lowest[i] = (math.inf, "")
 		self.num_examples = 0 # The total number of training examples we read in 
 		self.num_tests = num_tests
 		self.confusion_matrix = np.zeros((self.dim_z, self.dim_z))
@@ -213,11 +216,12 @@ class NBC:
 		"""
 		Tests the Naive Bayes Classifier by attempting to classify novel examples
 		"""
-		with open(self.test_data_location) as TD, open(self.test_out_location, 'w') as TO:
-			for tests in range(self.num_tests):
+		with open(self.test_data_location) as TD, open(self.test_out_location, 'w') as TO, open(self.test_labels_location) as TL:
+			for rem in range(self.num_tests):
 				classifications = np.zeros(self.dim_z)
 				for k in range(self.dim_z):
 					classifications[k] += math.log(self.get_class_probability(self.classes[k]))
+				ground_truth = int(TL.readline())
 				sample = ""
 				for j in range(self.dim_y):
 					sample += TD.readline().strip('\n')
@@ -236,7 +240,29 @@ class NBC:
 					if classifications[k] > max_val:
 						max_index = k
 						max_val = classifications[k]
+				if max_val > self.class_highest[ground_truth][0]:
+					self.class_highest[ground_truth] = (max_val, sample)
+				if max_val < self.class_lowest[ground_truth][0]:
+					self.class_lowest[ground_truth] = (max_val, sample)
 				TO.write("{0}\n".format(max_index))
+
+	def print_prototypical(self):
+		"""
+		Prints out the most and least prototypical examples of each class
+		Should only be called after testing has been done
+		Written with part 1.1 in mind, so this absolutely will not work for the likes of 2.2
+		"""
+		print("Most and least prototypical:")
+		for k in range(self.dim_z):
+			proto1 = ""
+			proto2 = ""
+			for j in range(self.dim_y):
+				for i in range(self.dim_x):
+					proto1 += self.class_highest[k][1][j * self.dim_x + i]
+					proto2 += self.class_lowest[k][1][j * self.dim_x + i]
+				proto1 += "\n"
+				proto2 += "\n"
+			print("Class {}:\nMost: {}\nLeast: {}".format(k, proto1, proto2))
 
 	def evaluate_accuracy(self):
 		"""
@@ -246,7 +272,6 @@ class NBC:
 		"""
 		classification_frequency = np.zeros(self.dim_z)
 		classification_total = np.zeros(self.dim_z)
-		#confusion_matrix = np.zeros((self.dim_z, self.dim_z))
 
 		with open(self.test_labels_location) as TL, open(self.test_out_location) as TO:
 			for rem in range(self.num_tests):

@@ -47,6 +47,7 @@ def digit_classifier(laplace_k):
 	NBC_digits.convert_to_likelihoods()
 	NBC_digits.update_class_probabilities()
 	NBC_digits.test_NBC()
+	NBC_digits.print_prototypical()
 	NBC_digits.evaluate_accuracy()
 	pairs = NBC_digits.get_pairs()
 	NBC_digits.odd_ratios(pairs)
