@@ -239,11 +239,13 @@ class NBC:
 		# Confusion Matrix and Odds Ratios
 		classification_frequency = np.zeros(self.dim_z)
 		classification_total = np.zeros(self.dim_z)
+		confusion_matrix = np.zeros((self.dim_z, self.dim_z))
 
 		with open(self.test_labels_location) as TL, open(self.test_out_location) as TO:
 			for rem in range(self.num_tests):
 				prediction = int(TO.readline())
 				ground_truth = int(TL.readline())
+				confusion_matrix[ground_truth, prediction] += 1
 				if prediction == ground_truth:
 					classification_frequency[self.classes.index(ground_truth)] += 1
 					classification_total[self.classes.index(ground_truth)] += 1
@@ -256,4 +258,11 @@ class NBC:
 			for rem in range(classification_frequency.size):
 				average += classification_frequency[rem] 
 			average /= classification_frequency.size
+
+			for i in range(self.dim_z):
+				total = np.sum(confusion_matrix[i])
+				for j in range(self.dim_z):
+					confusion_matrix[i, j] /= total
+					confusion_matrix[i, j] = round(confusion_matrix[i, j], 3) * 100
 			print("Overall accuracy: {0}".format(round(average, 3)))
+			print(confusion_matrix)
