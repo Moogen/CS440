@@ -70,7 +70,7 @@ class NBC:
 		self.test_out_location = test_out_location
 
 		self.classifier = np.full((self.dim_x, self.dim_y, self.dim_z), self.laplace_k) # The 3D array representing likelihood estimators for each feature at (i, j)
-		self.class_frequencies = np.full(self.dim_z, 0) # An array of prior frequencies for each class 
+		self.class_frequencies = np.zeros(self.dim_z) # An array of prior frequencies for each class 
 		self.class_probabilities = np.full(self.dim_z, math.inf) # An array of prior probabilities for each class. Separate from the above because the frequencies are used sometimes, so it's useful to be able to access both. 
 			# Each class probability is initialized to infinity until they are updated to their proper values
 		self.num_examples = 0 # The total number of training examples we read in 
@@ -124,7 +124,7 @@ class NBC:
 		Returns the number of times a feature (i, j) has had F_ij == 1
 		Only useful while the NBC is being trained; at the end of the training process, the frequencies are converted into probabilities
 		"""
-		if self.classifier[i, j, k] < 1:
+		if self.classifier[i, j, k] < 1 and self.laplace_k >= 1:
 			print("Feature frequencies have been converted to probabilities so this information is no longer useful")
 			return 0
 		else:
@@ -135,7 +135,7 @@ class NBC:
 		Increments the number of times a feature (i, j) has had F_ij == 1
 		Only useful while the NBC is being trained; at the end of the training process, the frequencies are converted into probabilities
 		"""
-		if self.classifier[i, j, k] < 1:
+		if self.classifier[i, j, k] < 1 and self.laplace_k >= 1:
 			print("Feature frequencies have been converted to probabilities so this information is no longer useful")
 		else:
 			self.classifier[i, j, k] += 1
@@ -220,13 +220,15 @@ class NBC:
 				label = int(label)
 				self.increment_class_frequency(label)
 				self.increment_num_examples()
+				sample = ""
 				for j in range(self.dim_y):
-					line = TD.readline()
-					for i in range(self.dim_x):
-						if self.features[line[i]] == 1:
-							self.increment_feature_frequency(i, j, self.classes.index(label))
-				for i in range(self.num_filler):
+					sample += TD.readline().strip('\n')
+				for j in range(self.num_filler):
 					TD.readline()
+				for j in range(self.dim_y):
+					for i in range(self.dim_x):
+						if self.features[sample[j * self.dim_x + i]] == 1:
+							self.increment_feature_frequency(i, j, label)
 
 	def convert_to_likelihoods(self):
 		"""
@@ -249,16 +251,19 @@ class NBC:
 				classifications = np.zeros(self.dim_z)
 				for k in range(self.dim_z):
 					classifications[k] += math.log(self.get_class_probability(self.classes[k]))
+				sample = ""
 				for j in range(self.dim_y):
-					line = TD.readline()
+					sample += TD.readline().strip('\n')
+				for j in range(self.num_filler):
+					TD.readline()
+				for j in range(self.dim_y):
 					for i in range(self.dim_x):
 						for k in range(self.dim_z):
-							if self.features[line[i]] == 1:
+							if self.features[sample[j * self.dim_x + i]] == 1:
 								classifications[k] += math.log(self.get_feature_probability(i, j, k))
-				for i in range(self.num_filler):
-					TD.readline()
 				max_index = 0
 				max_val = -math.inf
+				print(classifications)
 				for k in range(self.dim_z):
 					if classifications[k] > max_val:
 						max_index = k
