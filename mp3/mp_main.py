@@ -50,7 +50,7 @@ def digit_classifier(laplace_k):
 	NBC_digits.print_prototypical()
 	NBC_digits.evaluate_accuracy()
 	pairs = NBC_digits.get_pairs()
-	NBC_digits.odd_ratios(pairs)
+	NBC_digits.odds_ratios(pairs)
 
 def mp1_2(laplace_k):
 	pass

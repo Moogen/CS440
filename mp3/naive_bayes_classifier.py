@@ -272,7 +272,7 @@ class NBC:
 		"""
 		classification_frequency = np.zeros(self.dim_z)
 		classification_total = np.zeros(self.dim_z)
-
+		print("\nLaplace K: {0}".format(self.laplace_k))
 		with open(self.test_labels_location) as TL, open(self.test_out_location) as TO:
 			for rem in range(self.num_tests):
 				prediction = int(TO.readline())
@@ -338,7 +338,7 @@ class NBC:
 			matrix[pair[0], pair[1]] = -math.inf
 		return pairs
 
-	def odd_ratios(self, pairs):
+	def odds_ratios(self, pairs):
 		"""
 		Prints pretty pictures
 		"""
