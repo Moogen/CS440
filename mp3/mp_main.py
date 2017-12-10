@@ -47,9 +47,10 @@ def digit_classifier(laplace_k):
 	NBC_digits.convert_to_likelihoods()
 	NBC_digits.update_class_probabilities()
 	NBC_digits.test_NBC()
+	NBC_digits.print_prototypical()
 	NBC_digits.evaluate_accuracy()
-	
-	#NBC_digits.odd_ratios()
+	pairs = NBC_digits.get_pairs()
+	NBC_digits.odds_ratios(pairs)
 
 def mp1_2(laplace_k):
 	pass
@@ -83,7 +84,8 @@ def yesno_classifier(laplace_k):
 	NBC_yesno.update_class_probabilities()
 	NBC_yesno.test_NBC()
 	NBC_yesno.evaluate_accuracy()
-
+	
+# This definitely does not work right now but I don't have time to fix it 
 def audio_digit_classifier(laplace_k):
 	# NBC accuracy for this is legit 0
 	# Figure out why......

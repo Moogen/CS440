@@ -74,8 +74,14 @@ class NBC:
 		self.class_frequencies = np.zeros(self.dim_z) # An array of prior frequencies for each class 
 		self.class_probabilities = np.full(self.dim_z, math.inf) # An array of prior probabilities for each class. Separate from the above because the frequencies are used sometimes, so it's useful to be able to access both. 
 			# Each class probability is initialized to infinity until they are updated to their proper values
+		self.class_highest = {} # Used to report the most and least "prototypical" examples of each class
+		self.class_lowest = {}
+		for i in range(self.dim_z):
+			self.class_highest[i] = (-math.inf, "")
+			self.class_lowest[i] = (math.inf, "")
 		self.num_examples = 0 # The total number of training examples we read in 
 		self.num_tests = num_tests
+		self.confusion_matrix = np.zeros((self.dim_z, self.dim_z))
 
 	def __str__(self):
 		"""
@@ -210,11 +216,12 @@ class NBC:
 		"""
 		Tests the Naive Bayes Classifier by attempting to classify novel examples
 		"""
-		with open(self.test_data_location) as TD, open(self.test_out_location, 'w') as TO:
-			for tests in range(self.num_tests):
+		with open(self.test_data_location) as TD, open(self.test_out_location, 'w') as TO, open(self.test_labels_location) as TL:
+			for rem in range(self.num_tests):
 				classifications = np.zeros(self.dim_z)
 				for k in range(self.dim_z):
-					classifications[k] += math.log(self.get_class_probability(self.classes[k]), 2)
+					classifications[k] += math.log(self.get_class_probability(self.classes[k]))
+				ground_truth = int(TL.readline())
 				sample = ""
 				for j in range(self.dim_y):
 					sample += TD.readline().strip('\n')
@@ -224,29 +231,53 @@ class NBC:
 					for j in range(self.dim_y):
 						for i in range(self.dim_x):
 							if self.features[sample[j * self.dim_x + i]] == 1:
-								classifications[k] += math.log(self.get_feature_probability(i, j, k), 2)
+								classifications[k] += math.log(self.get_feature_probability(i, j, k))
 							else:
-								classifications[k] += math.log(1 - self.get_feature_probability(i, j, k), 2)
+								classifications[k] += math.log(1 - self.get_feature_probability(i, j, k))
 				max_index = 0
 				max_val = -math.inf
 				for k in range(self.dim_z):
 					if classifications[k] > max_val:
 						max_index = k
 						max_val = classifications[k]
+				if max_val > self.class_highest[ground_truth][0]:
+					self.class_highest[ground_truth] = (max_val, sample)
+				if max_val < self.class_lowest[ground_truth][0]:
+					self.class_lowest[ground_truth] = (max_val, sample)
 				TO.write("{0}\n".format(max_index))
 
+	def print_prototypical(self):
+		"""
+		Prints out the most and least prototypical examples of each class
+		Should only be called after testing has been done
+		Written with part 1.1 in mind, so this absolutely will not work for the likes of 2.2
+		"""
+		print("Most and least prototypical:")
+		for k in range(self.dim_z):
+			proto1 = ""
+			proto2 = ""
+			for j in range(self.dim_y):
+				for i in range(self.dim_x):
+					proto1 += self.class_highest[k][1][j * self.dim_x + i]
+					proto2 += self.class_lowest[k][1][j * self.dim_x + i]
+				proto1 += "\n"
+				proto2 += "\n"
+			print("Class {}:\nMost: {}\nLeast: {}".format(k, proto1, proto2))
+
 	def evaluate_accuracy(self):
-		# TODO:
-		# Confusion Matrix and Odds Ratios
+		"""
+		Evaluates how well the NBC did.
+		Reports the performance in terms of the overall classification accuracy for each class as well as a confusion matrix. 
+		For an arbitrary row r and column c, (r, c) in the confusion matrix is the percentage of test images from class r that are classified as class c.
+		"""
 		classification_frequency = np.zeros(self.dim_z)
 		classification_total = np.zeros(self.dim_z)
-		confusion_matrix = np.zeros((self.dim_z, self.dim_z))
-
+		print("\nLaplace K: {0}".format(self.laplace_k))
 		with open(self.test_labels_location) as TL, open(self.test_out_location) as TO:
 			for rem in range(self.num_tests):
 				prediction = int(TO.readline())
 				ground_truth = int(TL.readline())
-				confusion_matrix[ground_truth, prediction] += 1
+				self.confusion_matrix[ground_truth, prediction] += 1
 				if prediction == ground_truth:
 					classification_frequency[self.classes.index(ground_truth)] += 1
 					classification_total[self.classes.index(ground_truth)] += 1
@@ -261,78 +292,155 @@ class NBC:
 			average /= classification_frequency.size
 
 			for i in range(self.dim_z):
-				total = np.sum(confusion_matrix[i])
+				total = np.sum(self.confusion_matrix[i])
 				for j in range(self.dim_z):
-					confusion_matrix[i, j] /= total
-					confusion_matrix[i, j] = round(confusion_matrix[i, j], 3) * 100
-			print("Overall accuracy: {0}".format(round(average, 3)))
-			print(confusion_matrix)
+					self.confusion_matrix[i, j] /= total
+					self.confusion_matrix[i, j] = round(self.confusion_matrix[i, j], 3) * 100
+			print("Overall accuracy: {0}\n".format(round(average, 3)))
 
-	def odd_ratios(self):
+			print("Confusion Matrix:")
+			matrix = "\t"
+			for k in range(self.dim_z):
+				matrix += "{:<6}".format(self.classes[k])
+			matrix += "\n"
+			for i in range(self.dim_z):
+				matrix += "{:<7}".format(self.classes[i])
+				for j in range(self.dim_z):
+					matrix += "{:^6}".format(round(self.confusion_matrix[j, i], 3))
+				matrix += "\n"
+			print(matrix)
+
+	def get_largest(self, matrix):
+		"""
+		Returns the coordinate with the largest confusion rate in the matrix
+		"""
+		largest = -math.inf
+		coord = (0, 0)
+		for i in range(self.dim_z):
+			for j in range(self.dim_z):
+				if i == j:
+					continue
+				if matrix[j, i] > largest:
+					largest = matrix[j, i]
+					coord = (j, i)
+		return coord
+
+	def get_pairs(self):
+		"""
+		Returns the four pairs of digits that have the highest confusion rates according to the confusion matrix
+		This could definitely be done better with sorting but whatever
+		"""
+		matrix = np.copy(self.confusion_matrix)
+		pairs = []
+		for i in range(4):
+			pair = self.get_largest(matrix)
+			pairs.append(pair)
+			matrix[pair[0], pair[1]] = -math.inf
+		return pairs
+
+	def odds_ratios(self, pairs):
+		"""
+		Prints pretty pictures
+		"""
+		print("Four highest confusion pairs: {}".format(pairs))
 		cell_size = 10
-		win = GraphWin('graphics', cell_size * self.dim_x, cell_size * self.dim_x)
-		c1, c2 = 8, 1
-		for i in range(self.dim_x):
-			for j in range(self.dim_x):
-				x, y = i * cell_size, j * cell_size
-				odds = math.log(self.classifier[i ,j, c1] / self.classifier[i, j, c2])
-				color = 'firebrick'
-				if odds < 1.5:
-					color = 'red'
-				if odds < 1.:
-					color = 'orange red'
-				if odds < 0.5:
-					color = 'orange'
-				if odds < 0:
-					color = 'yellow'
-				if odds < -0.5:
-					color = 'pale green'
-				if odds < -1:
-					color = 'aquamarine'
-				if odds < -1.5:
-					color = 'deep sky blue'
-				if odds < -2:
-					color = 'royal blue'
-				if odds < -2.5:
-					color = 'blue'
-				if odds < -3:
-					color = 'midnight blue'
+		windows = []
+		for i in range(len(pairs) * 3):
+			win = GraphWin('graphics', cell_size * self.dim_x, cell_size * self.dim_y)
+			windows.append(win)
+		index = 0
+		for pair in pairs:
+			c1, c2 = pair
+			for i in range(self.dim_x):
+				for j in range(self.dim_y):
+					x, y = i * cell_size, j * cell_size
+					f1 = math.log(self.classifier[i, j, c1])
+					f2 = math.log(self.classifier[i, j, c2])
+					odds = math.log(self.classifier[i, j, c1] / self.classifier[i, j, c2])
 
-				"""
-				#feature classifier coloring - comment out if doing odd ratios
-				odds = math.log(self.classifier[i, j, c1])
-				color = 'firebrick'
-				if odds < -0.3:
-					color = 'red'
-				if odds < -0.6:
-					color = 'orange red'
-				if odds < -0.9:
-					color = 'orange'
-				if odds < -1.2:
-					color = 'yellow'
-				if odds < -1.5:
-					color = 'pale green'
-				if odds < -1.8:
-					color = 'aquamarine'
-				if odds < -2.1:
-					color = 'deep sky blue'
-				if odds < -2.4:
-					color = 'royal blue'
-				if odds < -2.7:
-					color = 'blue'
-				if odds < -3:
-					color = 'midnight blue'
-				"""
+					# Feature Classifier 1
+					color1 = 'firebrick'
+					if f1 < -0.3:
+						color1 = 'red'
+					if f1 < -0.6:
+						color1 = 'orange red'
+					if f1 < -0.9:
+						color1 = 'orange'
+					if f1 < -1.2:
+						color1 = 'yellow'
+					if f1 < -1.5:
+						color1 = 'pale green'
+					if f1 < -1.8:
+						color1 = 'aquamarine'
+					if f1 < -2.1:
+						color1 = 'deep sky blue'
+					if f1 < -2.4:
+						color1 = 'royal blue'
+					if f1 < -2.7:
+						color1 = 'blue'
+					if f1 < -3:
+						color1 = 'midnight blue'
+					rect = Rectangle(Point(x, y), Point(x + cell_size, y + cell_size))
+					rect.setOutline(color1)
+					rect.setFill(color1)
+					rect.draw(windows[index])
 
+					# Feature Classifier 2
+					color2 = 'firebrick'
+					if f2 < -0.3:
+						color2 = 'red'
+					if f2 < -0.6:
+						color2 = 'orange red'
+					if f2 < -0.9:
+						color2 = 'orange'
+					if f2 < -1.2:
+						color2 = 'yellow'
+					if f2 < -1.5:
+						color2 = 'pale green'
+					if f2 < -1.8:
+						color2 = 'aquamarine'
+					if f2 < -2.1:
+						color2 = 'deep sky blue'
+					if f2 < -2.4:
+						color2 = 'royal blue'
+					if f2 < -2.7:
+						color2 = 'blue'
+					if f2 < -3:
+						color2 = 'midnight blue'
+					rect = Rectangle(Point(x, y), Point(x + cell_size, y + cell_size))
+					rect.setOutline(color2)
+					rect.setFill(color2)
+					rect.draw(windows[index + 1])
 
-				rect = Rectangle(Point(x, y), Point(x + cell_size, y + cell_size))
-				rect.setOutline(color)
-				rect.setFill(color)
-				rect.draw(win)
-
-
-
-		win.getMouse()
-		win.getMouse()
-		win.close()
-		print(self.classifier[:, :, c1].shape)
+					# Odd Ratio 	
+					color_odds = 'firebrick'
+					if odds < 1.5:
+						color_odds = 'red'
+					if odds < 1.:
+						color_odds = 'orange red'
+					if odds < 0.5:
+						color_odds = 'orange'
+					if odds < 0:
+						color_odds = 'yellow'
+					if odds < -0.5:
+						color_odds = 'pale green'
+					if odds < -1:
+						color_odds = 'aquamarine'
+					if odds < -1.5:
+						color_odds = 'deep sky blue'
+					if odds < -2:
+						color_odds = 'royal blue'
+					if odds < -2.5:
+						color_odds = 'blue'
+					if odds < -3:
+						color_odds = 'midnight blue'
+					rect = Rectangle(Point(x, y), Point(x + cell_size, y + cell_size))
+					rect.setOutline(color_odds)
+					rect.setFill(color_odds)
+					rect.draw(windows[index + 2])
+			index += 3
+		for i in range(len(pairs) * 3):
+			# Parallel where
+			windows[i].getMouse()
+			windows[i].getMouse()
+			windows[i].close()
