@@ -2,9 +2,11 @@ import numpy as np
 import random
 import time
 
+from game_graphics import *
+
 class Game:
 
-	def __init__(self, num_train, num_games):
+	def __init__(self, num_train, num_games, has_second_player = False, has_graphics = False):
 
 		#q learning stuff
 		self.state_size = 10369
@@ -19,6 +21,13 @@ class Game:
 		self.num_games = num_games
 		self.num_bounces = 0
 		self.num_games_played = -1
+		self.has_second_player = has_second_player
+		self.player_one_score = 0
+
+		# graphics stuff
+		self.has_graphics = has_graphics
+		self.graphics_on = False
+		self.g = PongGraphics()
 
 		self.restart()
 
@@ -31,6 +40,12 @@ class Game:
 		self.paddle_x = 1
 		self.paddle_y = 0.5 - self.paddle_height / 2
 
+		# Second player stuff
+		self.paddle_height_2 = 0.2
+		self.paddle_x_2 = 0
+		self.paddle_y_2 = 0.5 - self.paddle_height_2 / 2
+		self.paddle_speed_2 = 0.02
+
 		self.num_games_played += 1
 
 	def start(self):
@@ -38,14 +53,23 @@ class Game:
 		while self.num_games_played < self.num_train:
 			self.update()
 
+		# let the actual games start
 		self.num_games_played = 0
 		self.num_bounces = 0
+		self.player_one_score = 0
+
+		# turn on graphics
+		if self.has_graphics:
+			self.graphics_on = True
+			self.start_graphics()
+
 		while self.num_games_played < self.num_games:
 			self.update()
 
 		print(self.num_bounces / self.num_games)
 		print(self.num_bounces)
 		print(time.time() - start)
+		print(self.player_one_score)
 
 	def update(self):
 		self.convert_to_discrete()
@@ -63,8 +87,17 @@ class Game:
 		# update the Q matrix - this will also move the paddle
 		self.calculate_Q(old_state)
 
+		if self.has_second_player:
+			self.update_second_player()
+
+		# draw graphics
+		if self.graphics_on:
+			self.draw_graphics()
+			self.g.wait()
+
 		# If a player scored, restart the game
 		if self.player_scored():
+			self.score()
 			self.restart()
 
 	def bounce(self):
@@ -79,9 +112,16 @@ class Game:
 			self.velocity_y = -self.velocity_y
 
 		# If ball_x < 0 (the ball is off the left edge of the screen), assign ball_x = -ball_x and velocity_x = -velocity_x.
-		if self.ball_x < 0:
-			self.ball_x = -self.ball_x
-			self.velocity_x = -self.velocity_x
+		if not self.has_second_player:
+			if self.ball_x < 0:
+				self.ball_x = -self.ball_x
+				self.velocity_x = -self.velocity_x
+		else:
+			if self.ball_hit_paddle(False):
+				self.ball_x = -(self.ball_x + self.velocity_x)
+				U, V = (0.015 - random.random() * 0.015 * 2), (0.03 - random.random() * 0.03 * 2)
+				self.velocity_x = -self.velocity_x + U
+				self.velocity_y = self.velocity_y + V
 
 		# If moving the ball to the new coordinates resulted in the ball bouncing off the paddle, 
 		# handle the ball's bounce by assigning ball_x = 2 * paddle_x - ball_x. Furthermore, when the ball bounces off a paddle, 
@@ -96,27 +136,67 @@ class Game:
 			self.velocity_y = self.velocity_y + V
 			self.num_bounces += 1
 
+		# velocity check
 		if np.abs(self.velocity_x) < 0.03:
 			self.velocity_x = 0.03 * np.sign(self.velocity_x)
+		elif np.abs(self.velocity_x) > 1:
+			self.velocity_x = np.sign(self.velocity_x)
+		if np.abs(self.velocity_y) > 1:
+			self.velocity_y = np.sign(self.velocity_y)
 
-	def ball_hit_paddle(self):
+	def ball_hit_paddle(self, is_player_one = True):
 		x_i, y_i = self.ball_x, self.ball_y
 		x_f, y_f = x_i + self.velocity_x, y_i + self.velocity_y
 
-		if x_f < self.paddle_x:
+		if is_player_one and x_f < self.paddle_x:
+			return False
+		elif not is_player_one and x_f > self.paddle_x_2:
 			return False
 
 		m = (y_f - y_i) / (x_f - x_i)
 		b = y_i - m * x_i
-		y_intersect = m * self.paddle_x + b
+		if is_player_one:
+			paddle_x = self.paddle_x
+			paddle_y = self.paddle_y
+			paddle_height = self.paddle_height
+		else:
+			paddle_x = self.paddle_x_2
+			paddle_y = self.paddle_y_2
+			paddle_height = self.paddle_height_2
 
-		if (y_intersect >= self.paddle_y) and (y_intersect <= self.paddle_y + self.paddle_height):
+		y_intersect = m * paddle_x + b
+
+		if (y_intersect >= paddle_y) and (y_intersect <= paddle_y + paddle_height):
 			return True
 
 		return False
 
 	def player_scored(self):
-		return self.ball_x >= 1
+		return self.ball_x >= 1 or self.ball_x < 0
+
+	def score(self):
+		if self.ball_x < 0:
+			self.player_one_score += 1
+
+	def update_second_player(self):
+		direction = np.sign(self.ball_y - (self.paddle_y_2 + self.paddle_height_2 / 2))
+		self.paddle_y_2 += direction * self.paddle_speed_2
+		if self.paddle_y_2 <= 0:
+			self.paddle_y_2 = 0.0
+		if (self.paddle_y_2 + self.paddle_height_2) >= 1:
+			self.paddle_y_2 = 1 - self.paddle_height_2
+
+	### =================== GRAPHICS METHODS ===================== ###
+	def start_graphics(self):
+		self.g = PongGraphics()
+		self.g.create()
+
+	def draw_graphics(self):
+		self.g.clear()
+		self.g.draw_paddle(self.paddle_x, self.paddle_y, self.paddle_height)
+		self.g.draw_paddle(self.paddle_x_2, self.paddle_y_2, self.paddle_height_2)
+		self.g.draw_ball(self.ball_x, self.ball_y)
+
 
 
 	### =================== Q LEARNING METHODS ==================== ###
@@ -202,5 +282,5 @@ class Game:
 		
 
 
-g = Game(10000, 1000)
+g = Game(10000, 1000, has_second_player = False, has_graphics = False)
 g.start()
