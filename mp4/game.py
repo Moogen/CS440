@@ -1,18 +1,20 @@
 import numpy as np
-import numpy.random as random
+import random
+import time
 
 class Game:
 
-	def __init__(self, num_games):
+	def __init__(self, num_train, num_games):
 
 		#q learning stuff
 		self.state_size = 10369
 		self.Q = np.zeros([self.state_size, 3])
-		self.learning_rate = 0.2
-		self.discount_factor = 0.5
+		self.learning_rate = 0.3
+		self.discount_factor = 0.3
 		self.epsilon = 0.05 	# chance that a random action is taken
 
 		# game stuff
+		self.num_train = num_train
 		self.num_games = num_games
 		self.num_bounces = 0
 		self.num_games_played = -1
@@ -26,15 +28,23 @@ class Game:
 		self.velocity_x = 0.03
 		self.velocity_y = 0.01
 		self.paddle_x = 1
-		self.paddle_y = 0.5 - self.paddle_height
+		self.paddle_y = 0.5 - self.paddle_height / 2
 
 		self.num_games_played += 1
 
 	def start(self):
+		start = time.time()
+		while self.num_games_played < self.num_train:
+			self.update()
+
+		self.num_games_played = 0
+		self.num_bounces = 0
 		while self.num_games_played < self.num_games:
 			self.update()
 
+		print(self.num_bounces / self.num_games)
 		print(self.num_bounces)
+		print(time.time() - start)
 
 	def update(self):
 		self.convert_to_discrete()
@@ -46,11 +56,11 @@ class Game:
 		self.ball_x += self.velocity_x
 		self.ball_y += self.velocity_y
 
-		# update the Q matrix - this will also move the paddle
-		self.calculate_Q(old_state)
-
 		# Check for bounces
 		self.bounce()
+
+		# update the Q matrix - this will also move the paddle
+		self.calculate_Q(old_state)
 
 		# If a player scored, restart the game
 		if self.player_scored():
@@ -78,42 +88,40 @@ class Game:
 		# where U is chosen uniformly on [-0.015, 0.015] and V is chosen uniformly on [-0.03, 0.03]. 
 		# As specified above, make sure that all |velocity_x| > 0.03.
 		
-		self.convert_to_discrete()
 		if self.ball_hit_paddle():
-			self.ball_x = 2 * self.paddle_x - self.ball_x
-			U, V = (0.015 - random.rand() * 0.015 * 2), (0.03 - random.random() * 0.03 * 2)
+			self.ball_x = 2 * self.paddle_x - (self.ball_x + self.velocity_x)
+			U, V = (0.015 - random.random() * 0.015 * 2), (0.03 - random.random() * 0.03 * 2)
 			self.velocity_x = -self.velocity_x + U
 			self.velocity_y = self.velocity_y + V
+			self.num_bounces += 1
 
 		if np.abs(self.velocity_x) < 0.03:
 			self.velocity_x = 0.03 * np.sign(self.velocity_x)
 
 	def ball_hit_paddle(self):
-		x, y = self.get_cell()[0]
-		if x == 11 and y == self.discrete_paddle_y:
-			self.num_bounces += 1
-			return True
-		else:
+		x_i, y_i = self.ball_x, self.ball_y
+		x_f, y_f = x_i + self.velocity_x, y_i + self.velocity_y
+
+		if x_f < self.paddle_x:
 			return False
 
+		m = (y_f - y_i) / (x_f - x_i)
+		b = y_i - m * x_i
+		y_intersect = m * self.paddle_x + b
+
+		if (y_intersect >= self.paddle_y) and (y_intersect <= self.paddle_y + self.paddle_height):
+			return True
+
+		return False
+
 	def player_scored(self):
-		x, y = self.get_cell()[0]
-		if x == 12:
+		if self.ball_x >= 1:
 			return True
 		else:
 			return False
 
 
 	### =================== Q LEARNING METHODS ==================== ###
-	
-	def generate_reward(self):
-		"""This method should only be called once when initiliazing the game class
-		
-		Generates a reward table for the q learning
-		"""
-
-		R = np.zeros([self.state_size, 3])
-
 
 	def convert_to_discrete(self):
 		self.discrete_velocity_x = np.sign(self.velocity_x)
@@ -133,8 +141,12 @@ class Game:
 		x, y = np.floor(self.ball_x * 12), np.floor(self.ball_y * 12)
 		if self.ball_x >= 1:
 			x = 12
-		if self.ball_y <= 1:
+		if self.ball_x <= 0:
+			x = 0
+		if self.ball_y >= 1:
 			y = 11
+		if self.ball_y <= 0:
+			y = 0
 		index = x + y * 12
 		return (x, y), index
 
@@ -147,10 +159,7 @@ class Game:
 		
 		x_vel_index = [-1, 1].index(self.discrete_velocity_x)
 		y_vel_index = [-1, 0, 1].index(self.discrete_velocity_y)
-		state = np.floor(cell_index + 144 * x_vel_index )
-		state = np.floor( ( (y_vel_index + 3 * self.discrete_paddle_y) * 2 + x_vel_index ) * 144 + cell_index )
-		if int(state) == 10943:
-			print (cell, cell_index, x_vel_index, y_vel_index, self.discrete_paddle_y)
+		state = np.floor( ( (3 * self.discrete_paddle_y + y_vel_index) * 2 + x_vel_index ) * 144 + cell_index )
 		return int(state)
 
 	def calculate_Q(self, old_state):
@@ -158,12 +167,13 @@ class Game:
 
 		# First, choose an action
 		action_index = 0
-		if random.rand() < self.epsilon:
-			action_index = int(np.floor(len(actions) * random.rand()))
+		v = self.Q[old_state]
+		if random.random() < self.epsilon:
+			action_index = int(random.random() * 3)
 		else:
-			v = self.Q[old_state]
-			indices = [i for i, x in enumerate(v) if x == np.amax(v)]	# get all indices of the max values in Q[old_state]
-			action_index = random.choice(indices)
+			#indices = [i for i, x in enumerate(v) if x == np.amax(v)]	# get all indices of the max values in Q[old_state]
+			#action_index = random.choice(indices)
+			action_index = np.argmax(self.Q[old_state])
 
 		# Move the paddle
 		self.paddle_y += actions[action_index]
@@ -182,13 +192,14 @@ class Game:
 
 		# calculate Q_max
 		new_state = self.get_state()
-		Q_max = np.amax(self.Q[new_state])
+		Q_max = max(self.Q[new_state])
 
 		# update Q
-		self.Q[old_state, action_index] = (1 - self.learning_rate) * self.Q[old_state, action_index] + self.learning_rate * (r + self.discount_factor * Q_max)
+		Q = self.Q[old_state, action_index]
+		self.Q[old_state, action_index] = Q + self.learning_rate * (r + self.discount_factor * Q_max - Q)
 
 		
 
 
-g = Game(10000)
+g = Game(5000, 1)
 g.start()
