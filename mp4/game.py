@@ -262,6 +262,10 @@ class Game:
 
 		# Calculate the reward
 		r = 0
+		if self.ball_y > self.paddle_y and self.ball_y < (self.paddle_y + self.paddle_height):
+			dist_from_center = np.abs(self.paddle_y + self.paddle_height / 2 - self.ball_y)
+			dist_from_paddle = np.abs(self.paddle_x - self.ball_x)
+			r = (1 - dist_from_center / (self.paddle_height / 2) ) * (1 - dist_from_paddle)
 		if self.ball_hit_paddle():
 			r = 1
 		if self.player_scored():		# out of bounds
@@ -282,5 +286,5 @@ class Game:
 		
 
 
-g = Game(10000, 1000, has_second_player = False, has_graphics = True)
+g = Game(3000, 1000, has_second_player = False, has_graphics = False)
 g.start()
