@@ -1,18 +1,119 @@
 import numpy as np
+import numpy.random as random
 
 class Game:
 
-	def __init__(self):
-		self.paddle_height = 0.2
-		self.ball_x = 1
-		self.ball_y = 1
-		self.velocity_x = 0.03
-		self.velocity_y = 0.01
-		self.paddle_y = 0.5 - self.paddle_height
+	def __init__(self, num_games):
 
 		#q learning stuff
 		self.state_size = 10369
 		self.Q = np.zeros([self.state_size, 3])
+		self.learning_rate = 0.2
+		self.discount_factor = 0.5
+		self.epsilon = 0.05 	# chance that a random action is taken
+
+		# game stuff
+		self.num_games = num_games
+		self.num_bounces = 0
+		self.num_games_played = -1
+
+		self.restart()
+
+	def restart(self):
+		self.paddle_height = 0.2
+		self.ball_x = 0.5
+		self.ball_y = 0.5
+		self.velocity_x = 0.03
+		self.velocity_y = 0.01
+		self.paddle_x = 1
+		self.paddle_y = 0.5 - self.paddle_height
+
+		self.num_games_played += 1
+
+	def start(self):
+		while self.num_games_played < self.num_games:
+			self.update()
+
+		print(self.num_bounces)
+
+	def update(self):
+		self.convert_to_discrete()
+
+		# Before updating values, get the old state first to calculate q values
+		old_state = self.get_state()
+
+		# Increment ball_x by velocity_x and ball_y by velocity_y
+		self.ball_x += self.velocity_x
+		self.ball_y += self.velocity_y
+
+		# update the Q matrix - this will also move the paddle
+		self.calculate_Q(old_state)
+
+		# Check for bounces
+		self.bounce()
+
+		# If a player scored, restart the game
+		if self.player_scored():
+			self.restart()
+
+	def bounce(self):
+		# If ball_y < 0 (the ball is off the top of the screen), assign ball_y = -ball_y and velocity_y = -velocity_y
+		if self.ball_y < 0:
+			self.ball_y = -self.ball_y
+			self.velocity_y = -self.velocity_y
+
+		# If ball_y > 1 (the ball is off the bottom of the screen), let ball_y = 2 - ball_y and velocity_y = -velocity_y.
+		if self.ball_y > 1:
+			self.ball_y = 2 - self.ball_y
+			self.velocity_y = -self.velocity_y
+
+		# If ball_x < 0 (the ball is off the left edge of the screen), assign ball_x = -ball_x and velocity_x = -velocity_x.
+		if self.ball_x < 0:
+			self.ball_x = -self.ball_x
+			self.velocity_x = -self.velocity_x
+
+		# If moving the ball to the new coordinates resulted in the ball bouncing off the paddle, 
+		# handle the ball's bounce by assigning ball_x = 2 * paddle_x - ball_x. Furthermore, when the ball bounces off a paddle, 
+		# randomize the velocities slightly by using the equation velocity_x = -velocity_x + U and velocity_y = velocity_y + V, 
+		# where U is chosen uniformly on [-0.015, 0.015] and V is chosen uniformly on [-0.03, 0.03]. 
+		# As specified above, make sure that all |velocity_x| > 0.03.
+		
+		self.convert_to_discrete()
+		if self.ball_hit_paddle():
+			self.ball_x = 2 * self.paddle_x - self.ball_x
+			U, V = (0.015 - random.rand() * 0.015 * 2), (0.03 - random.random() * 0.03 * 2)
+			self.velocity_x = -self.velocity_x + U
+			self.velocity_y = self.velocity_y + V
+
+		if np.abs(self.velocity_x) < 0.03:
+			self.velocity_x = 0.03 * np.sign(self.velocity_x)
+
+	def ball_hit_paddle(self):
+		x, y = self.get_cell()[0]
+		if x == 11 and y == self.discrete_paddle_y:
+			self.num_bounces += 1
+			return True
+		else:
+			return False
+
+	def player_scored(self):
+		x, y = self.get_cell()[0]
+		if x == 12:
+			return True
+		else:
+			return False
+
+
+	### =================== Q LEARNING METHODS ==================== ###
+	
+	def generate_reward(self):
+		"""This method should only be called once when initiliazing the game class
+		
+		Generates a reward table for the q learning
+		"""
+
+		R = np.zeros([self.state_size, 3])
+
 
 	def convert_to_discrete(self):
 		self.discrete_velocity_x = np.sign(self.velocity_x)
@@ -32,6 +133,8 @@ class Game:
 		x, y = np.floor(self.ball_x * 12), np.floor(self.ball_y * 12)
 		if self.ball_x >= 1:
 			x = 12
+		if self.ball_y <= 1:
+			y = 11
 		index = x + y * 12
 		return (x, y), index
 
@@ -39,17 +142,53 @@ class Game:
 
 		# State is calculate with 12x12 grid, x_vel (+-1), y_vel (+-1 or 0), and paddle_y (12 possible values)
 		cell, cell_index = self.get_cell()
-		if cell[0] = 12:
-			return self_state.size - 1
+		if self.player_scored():
+			return self.state_size - 1
 		
 		x_vel_index = [-1, 1].index(self.discrete_velocity_x)
 		y_vel_index = [-1, 0, 1].index(self.discrete_velocity_y)
 		state = np.floor(cell_index + 144 * x_vel_index )
 		state = np.floor( ( (y_vel_index + 3 * self.discrete_paddle_y) * 2 + x_vel_index ) * 144 + cell_index )
-		return state
+		if int(state) == 10943:
+			print (cell, cell_index, x_vel_index, y_vel_index, self.discrete_paddle_y)
+		return int(state)
+
+	def calculate_Q(self, old_state):
+		actions = [-0.04, 0, 0.04]
+
+		# First, choose an action
+		action_index = 0
+		if random.rand() < self.epsilon:
+			action_index = int(np.floor(len(actions) * random.rand()))
+		else:
+			v = self.Q[old_state]
+			indices = [i for i, x in enumerate(v) if x == np.amax(v)]	# get all indices of the max values in Q[old_state]
+			action_index = random.choice(indices)
+
+		# Move the paddle
+		self.paddle_y += actions[action_index]
+		if self.paddle_y <= 0:
+			self.paddle_y = 0
+		if (self.paddle_y + self.paddle_height) >= 1:
+			self.paddle_y = 1 - self.paddle_height
+
+		# Calculate the reward
+		r = 0
+		self.convert_to_discrete()
+		if self.ball_hit_paddle():
+			r = 1
+		if self.player_scored():		# out of bounds
+			r = -1
+
+		# calculate Q_max
+		new_state = self.get_state()
+		Q_max = np.amax(self.Q[new_state])
+
+		# update Q
+		self.Q[old_state, action_index] = (1 - self.learning_rate) * self.Q[old_state, action_index] + self.learning_rate * (r + self.discount_factor * Q_max)
+
 		
 
 
-g = Game()
-g.convert_to_discrete()
-print(g.get_state())
+g = Game(10000)
+g.start()
