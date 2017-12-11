@@ -9,9 +9,10 @@ class Game:
 		#q learning stuff
 		self.state_size = 10369
 		self.Q = np.zeros([self.state_size, 3])
-		self.learning_rate = 0.3
-		self.discount_factor = 0.3
-		self.epsilon = 0.05 	# chance that a random action is taken
+		self.N = np.zeros([self.state_size, 3])
+		self.learning_rate = 0.4
+		self.discount_factor = 0.7
+		self.epsilon = 0.1 	# chance that a random action is taken
 
 		# game stuff
 		self.num_train = num_train
@@ -115,10 +116,7 @@ class Game:
 		return False
 
 	def player_scored(self):
-		if self.ball_x >= 1:
-			return True
-		else:
-			return False
+		return self.ball_x >= 1
 
 
 	### =================== Q LEARNING METHODS ==================== ###
@@ -153,7 +151,7 @@ class Game:
 	def get_state(self):
 
 		# State is calculate with 12x12 grid, x_vel (+-1), y_vel (+-1 or 0), and paddle_y (12 possible values)
-		cell, cell_index = self.get_cell()
+		_, cell_index = self.get_cell()
 		if self.player_scored():
 			return self.state_size - 1
 		
@@ -173,33 +171,36 @@ class Game:
 		else:
 			#indices = [i for i, x in enumerate(v) if x == np.amax(v)]	# get all indices of the max values in Q[old_state]
 			#action_index = random.choice(indices)
-			action_index = np.argmax(self.Q[old_state])
+			action_index = self.Q[old_state].argmax()
 
 		# Move the paddle
 		self.paddle_y += actions[action_index]
 		if self.paddle_y <= 0:
-			self.paddle_y = 0
+			self.paddle_y = 0.0
 		if (self.paddle_y + self.paddle_height) >= 1:
 			self.paddle_y = 1 - self.paddle_height
 
 		# Calculate the reward
 		r = 0
-		self.convert_to_discrete()
 		if self.ball_hit_paddle():
 			r = 1
 		if self.player_scored():		# out of bounds
 			r = -1
 
 		# calculate Q_max
+		self.convert_to_discrete()
 		new_state = self.get_state()
-		Q_max = max(self.Q[new_state])
+		Q_max = self.Q[new_state].max()
 
 		# update Q
+		decay_const = 20
+		decay = decay_const / (decay_const + self.N[old_state, action_index])
 		Q = self.Q[old_state, action_index]
-		self.Q[old_state, action_index] = Q + self.learning_rate * (r + self.discount_factor * Q_max - Q)
+		self.Q[old_state, action_index] = Q + self.learning_rate * decay * (r + self.discount_factor * Q_max - Q)
+		self.N[old_state, action_index] += 1.0
 
 		
 
 
-g = Game(5000, 1)
+g = Game(10000, 1000)
 g.start()
