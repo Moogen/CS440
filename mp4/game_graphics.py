@@ -12,7 +12,12 @@ class PongGraphics:
 
 	def create(self):
 		self.win = GraphWin('pong', self.scale, self.scale)
+		self.win.bind('<Motion>', self.motion)
 		self.win.getMouse()
+
+	def motion(self, event):
+		x, y = event.x, event.y
+		self.mouse_y = y / self.scale
 
 	def clear(self):
 		for item in self.win.items[:]:
@@ -36,6 +41,12 @@ class PongGraphics:
 		circle = Circle(Point(ball_x, ball_y), self.ball_radius)
 		circle.setFill('red')
 		circle.draw(self.win)
+
+	def draw_score(self, one, two):
+		label = Text(Point(self.scale * 0.3, self.scale * 0.1), two)
+		label.draw(self.win)
+		label = Text(Point(self.scale * 0.7, self.scale * 0.1), one)
+		label.draw(self.win)
 
 	def wait(self):
 		time.sleep(self.step)

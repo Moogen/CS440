@@ -6,13 +6,14 @@ from game_graphics import *
 
 class Game:
 
-	def __init__(self, num_train, num_games, has_second_player = False, has_graphics = False):
+	def __init__(self, num_train, num_games, has_second_player = False, has_graphics = False, has_human_player = False):
 
 		#q learning stuff
 		self.state_size = 10369
 		self.Q = np.zeros([self.state_size, 3])
 		self.N = np.zeros([self.state_size, 3])
-		self.learning_rate = 0.4
+		self.successful_states = []
+		self.learning_rate = 0.8
 		self.discount_factor = 0.7
 		self.epsilon = 0.1 	# chance that a random action is taken
 
@@ -23,6 +24,8 @@ class Game:
 		self.num_games_played = -1
 		self.has_second_player = has_second_player
 		self.player_one_score = 0
+
+		self.has_human_player = has_human_player
 
 		# graphics stuff
 		self.has_graphics = has_graphics
@@ -66,14 +69,15 @@ class Game:
 		while self.num_games_played < self.num_games:
 			self.update()
 
-		print(self.num_bounces / self.num_games)
-		print(self.num_bounces)
-		print(time.time() - start)
-		print(self.player_one_score)
+		print("Number of games trained:", self.num_train)
+		print("Number of games played:", self.num_games)
+		print("Average # of bounces per game:", self.num_bounces / self.num_games)
+		print("Win rate:", self.player_one_score / self.num_games)
+		print()
+		print("Time:", time.time() - start)
+		
 
 	def update(self):
-		self.convert_to_discrete()
-
 		# Before updating values, get the old state first to calculate q values
 		old_state = self.get_state()
 
@@ -179,7 +183,10 @@ class Game:
 			self.player_one_score += 1
 
 	def update_second_player(self):
-		direction = np.sign(self.ball_y - (self.paddle_y_2 + self.paddle_height_2 / 2))
+		if self.has_human_player and self.graphics_on:
+			direction = np.sign(self.g.mouse_y - (self.paddle_y_2 + self.paddle_height_2 / 2))
+		else:
+			direction = np.sign(self.ball_y - (self.paddle_y_2 + self.paddle_height_2 / 2))
 		self.paddle_y_2 += direction * self.paddle_speed_2
 		if self.paddle_y_2 <= 0:
 			self.paddle_y_2 = 0.0
@@ -196,6 +203,7 @@ class Game:
 		self.g.draw_paddle(self.paddle_x, self.paddle_y, self.paddle_height)
 		self.g.draw_paddle(self.paddle_x_2, self.paddle_y_2, self.paddle_height_2)
 		self.g.draw_ball(self.ball_x, self.ball_y)
+		self.g.draw_score(self.player_one_score, self.num_games_played - self.player_one_score)
 
 
 
@@ -229,6 +237,7 @@ class Game:
 		return (x, y), index
 
 	def get_state(self):
+		self.convert_to_discrete()
 
 		# State is calculate with 12x12 grid, x_vel (+-1), y_vel (+-1 or 0), and paddle_y (12 possible values)
 		_, cell_index = self.get_cell()
@@ -244,14 +253,24 @@ class Game:
 		actions = [-0.04, 0, 0.04]
 
 		# First, choose an action
+		
 		action_index = 0
-		v = self.Q[old_state]
 		if random.random() < self.epsilon:
 			action_index = int(random.random() * 3)
 		else:
 			#indices = [i for i, x in enumerate(v) if x == np.amax(v)]	# get all indices of the max values in Q[old_state]
 			#action_index = random.choice(indices)
 			action_index = self.Q[old_state].argmax()
+
+		"""
+		laplace = 0.001
+		p = (self.Q[old_state] + laplace) / np.sum(self.Q[old_state] + laplace)
+		
+		if not (p >= 0).all():
+			p[p < 0] = 0
+			p = p / np.sum(p)
+		action_index = np.random.choice(3, p = p)
+		#print(self.Q[old_state], p, action_index)"""
 
 		# Move the paddle
 		self.paddle_y += actions[action_index]
@@ -268,23 +287,40 @@ class Game:
 			r = (1 - dist_from_center / (self.paddle_height / 2) ) * (1 - dist_from_paddle)
 		if self.ball_hit_paddle():
 			r = 1
+			for i in range(int(len(self.successful_states) / 4)):
+				state = self.successful_states[len(self.successful_states) - 1 - i]
+				Q = self.Q[state[0], state[1]]
+				decay_const = 10
+				decay = decay_const / (decay_const + self.N[state[0], state[1]])
+				self.Q[state[0], state[1]] += self.learning_rate * decay * (state[2] * 2 - Q)
+			self.successful_states = []
 		if self.player_scored():		# out of bounds
 			r = -1
+			if self.ball_x < 0:
+				r = 0
+			self.successful_states = []
 
 		# calculate Q_max
-		self.convert_to_discrete()
 		new_state = self.get_state()
 		Q_max = self.Q[new_state].max()
 
 		# update Q
-		decay_const = 20
+		
+		if self.velocity_x < 0:
+			self.discount_factor = 0.1
+		else:
+			self.discount_factor = 0.9
+		
+		decay_const = 10
 		decay = decay_const / (decay_const + self.N[old_state, action_index])
 		Q = self.Q[old_state, action_index]
 		self.Q[old_state, action_index] = Q + self.learning_rate * decay * (r + self.discount_factor * Q_max - Q)
 		self.N[old_state, action_index] += 1.0
 
+		#self.successful_states.append((old_state, action_index, r))
+
 		
 
 
-g = Game(3000, 1000, has_second_player = False, has_graphics = False)
+g = Game(100, 3000, has_second_player = False, has_graphics = True, has_human_player = False)
 g.start()
