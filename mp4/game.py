@@ -286,5 +286,5 @@ class Game:
 		
 
 
-g = Game(3000, 1000, has_second_player = False, has_graphics = False)
+g = Game(100000, 1000, has_second_player = True, has_graphics = False)
 g.start()
